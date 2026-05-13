@@ -1,7 +1,52 @@
-"""librosa 기반 오디오 분석.
+"""librosa 기반 오디오 분석 (FR-4.8, FR-4.10, FR-4.11)."""
+import logging
+from pathlib import Path
+from typing import Any
 
-TODO(Phase 5): FR-4.8 / FR-4.10 / FR-4.11 구현
-- 평균 피치, 피치 표준편차, 단조로움 지수
-- WPM, 침묵 구간, RMS 에너지
-- 필러워드 / 버벅거림 감지는 services/filler_detector.py로 분리 (Phase 5)
-"""
+logger = logging.getLogger(__name__)
+
+
+def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> dict[str, Any]:
+    """피치/속도/침묵/RMS 지표 산출."""
+    import librosa  # lazy import
+    import numpy as np  # lazy import
+
+    y, sr = librosa.load(str(audio_path), sr=16000)
+
+    f0, _voiced, _ = librosa.pyin(
+        y, fmin=librosa.note_to_hz("C2"), fmax=librosa.note_to_hz("C7")
+    )
+    voiced = f0[~np.isnan(f0)] if f0 is not None else np.array([])
+    pitch_mean = float(np.mean(voiced)) if voiced.size else None
+    pitch_std = float(np.std(voiced)) if voiced.size else None
+    monotone = (pitch_std / pitch_mean) if (pitch_mean and pitch_std) else None
+
+    rms = librosa.feature.rms(y=y)[0]
+    rms_mean = float(np.mean(rms))
+
+    intervals = librosa.effects.split(y, top_db=30)
+    voiced_dur = sum((e - s) for s, e in intervals) / sr if len(intervals) else 0.0
+    silence_dur = max(0.0, duration_sec - voiced_dur)
+
+    long_silences = 0
+    if len(intervals) >= 2:
+        for i in range(len(intervals) - 1):
+            gap = (intervals[i + 1][0] - intervals[i][1]) / sr
+            if gap >= 0.5:
+                long_silences += 1
+
+    wpm = None
+    if transcript and voiced_dur > 0:
+        words = transcript.split()
+        wpm = (len(words) / voiced_dur) * 60
+
+    return {
+        "pitch_mean": pitch_mean,
+        "pitch_std": pitch_std,
+        "monotone_index": monotone,
+        "rms_mean": rms_mean,
+        "voiced_duration_sec": voiced_dur,
+        "silence_duration_sec": silence_dur,
+        "long_silences_count": long_silences,
+        "wpm": wpm,
+    }

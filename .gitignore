@@ -1,0 +1,44 @@
+# 사용자 지정 (문서 비공개)
+CLAUDE.MD
+PROMPT.MD
+SRS.MD
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# 환경변수
+.env
+.env.local
+.env.*.local
+
+# DB / 영상 / 로그 (시연용 데이터)
+backend/data/videos/*
+!backend/data/videos/.gitkeep
+backend/data/*.db
+backend/data/*.db-*
+backend/logs/*
+!backend/logs/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 에디터
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+python-multipart
+python-dotenv
+anthropic
+pdfplumber
+faster-whisper
+mediapipe
+librosa
+ffmpeg-python
+numpy

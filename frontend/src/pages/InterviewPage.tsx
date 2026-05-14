@@ -7,7 +7,6 @@ type UploadState = {
   status: 'uploading' | 'done' | 'failed'
   attempt: number
 }
-
 type PermissionState = 'pending' | 'granted' | 'denied'
 
 export default function InterviewPage() {
@@ -22,6 +21,9 @@ export default function InterviewPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [uploads, setUploads] = useState<UploadState[]>([])
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [displayed, setDisplayed] = useState('')
 
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -49,7 +51,6 @@ export default function InterviewPage() {
         setPermission('granted')
       })
       .catch((err: Error) => {
-        // NotAllowedError(권한 거부)는 사용자가 의식적으로 차단한 것 → 에러 화면
         if (err.name === 'NotAllowedError') {
           setPermission('denied')
           setPermissionError(
@@ -57,7 +58,6 @@ export default function InterviewPage() {
           )
           return
         }
-        // 기기 부재(NotFoundError) 등은 데모 모드로 진행 (시연·디자인 미리보기용)
         console.warn('미디어 기기 접근 실패 — 데모 모드로 진행:', err.message)
         setDemoMode(true)
         setPermission('granted')
@@ -67,6 +67,77 @@ export default function InterviewPage() {
       streamRef.current?.getTracks().forEach((t) => t.stop())
     }
   }, [])
+
+  // TTS + typewriter — 새 질문이 표시될 때마다 면접관이 말함
+  useEffect(() => {
+    if (!session) return
+    const text = session.questions[currentIndex]?.text
+    if (!text) return
+
+    // typewriter
+    setDisplayed('')
+    let i = 0
+    const tInterval = window.setInterval(() => {
+      i += 1
+      setDisplayed(text.slice(0, i))
+      if (i >= text.length) window.clearInterval(tInterval)
+    }, 35)
+
+    // speech
+    if (!isMuted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      const utter = new SpeechSynthesisUtterance(text)
+      utter.lang = 'ko-KR'
+      utter.rate = 1.0
+      utter.pitch = 1.05
+      const voices = window.speechSynthesis.getVoices()
+      const koVoice = voices.find((v) => v.lang.startsWith('ko'))
+      if (koVoice) utter.voice = koVoice
+      utter.onstart = () => setIsSpeaking(true)
+      utter.onend = () => setIsSpeaking(false)
+      utter.onerror = () => setIsSpeaking(false)
+      window.speechSynthesis.speak(utter)
+    }
+
+    return () => {
+      window.clearInterval(tInterval)
+      window.speechSynthesis?.cancel()
+      setIsSpeaking(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, session])
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel()
+    }
+  }, [])
+
+  const speakAgain = () => {
+    if (!session) return
+    const text = session.questions[currentIndex]?.text
+    if (!text || !('speechSynthesis' in window)) return
+    window.speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = 'ko-KR'
+    utter.rate = 1.0
+    utter.pitch = 1.05
+    const voices = window.speechSynthesis.getVoices()
+    const koVoice = voices.find((v) => v.lang.startsWith('ko'))
+    if (koVoice) utter.voice = koVoice
+    utter.onstart = () => setIsSpeaking(true)
+    utter.onend = () => setIsSpeaking(false)
+    utter.onerror = () => setIsSpeaking(false)
+    window.speechSynthesis.speak(utter)
+  }
+
+  const toggleMute = () => {
+    if (!isMuted) {
+      window.speechSynthesis?.cancel()
+      setIsSpeaking(false)
+    }
+    setIsMuted((m) => !m)
+  }
 
   const beginCountdown = () => {
     if (isRecording || countdown !== null) return
@@ -98,7 +169,6 @@ export default function InterviewPage() {
       actuallyStartRecording()
       return
     }
-    // 0("시작!")은 짧게, 3/2/1은 1초씩
     const delay = countdown === 0 ? 450 : 1000
     const id = window.setTimeout(
       () => setCountdown((c) => (c === null ? null : c - 1)),
@@ -111,7 +181,6 @@ export default function InterviewPage() {
   const stopRecording = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       if (demoMode || !recorderRef.current) {
-        // 데모 모드: 1KB 더미 blob (백엔드는 영상으로 저장 → 큐 등록 → 분석은 실패)
         resolve(new Blob([new Uint8Array(1024)], { type: 'video/webm' }))
         return
       }
@@ -229,7 +298,7 @@ export default function InterviewPage() {
       </header>
 
       {uploads.length > 0 && (
-        <div className="fixed top-20 right-6 z-10 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl px-4 py-2.5 text-xs shadow-2xl">
+        <div className="fixed top-32 right-6 z-10 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl px-4 py-2.5 text-xs shadow-2xl">
           <div className="font-semibold text-slate-300 mb-1">업로드 상태</div>
           <div className="flex items-center gap-3 tabular-nums">
             <span className="text-emerald-400">
@@ -246,25 +315,149 @@ export default function InterviewPage() {
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="grid md:grid-cols-5 gap-6 items-stretch">
-          <div className="md:col-span-3">
-            <div className="relative aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-slate-800/80">
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid md:grid-cols-5 gap-5">
+          {/* AI 면접관 stage */}
+          <div className="md:col-span-3 relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950/40 min-h-[480px]">
+            {/* 배경 글로우 */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div
+                className={`absolute top-12 left-1/2 -translate-x-1/2 w-[28rem] h-[28rem] bg-sky-500/20 rounded-full blur-3xl transition-opacity duration-700 ${
+                  isSpeaking ? 'opacity-100 animate-pulse' : 'opacity-40'
+                }`}
+              />
+              <div
+                className={`absolute bottom-0 left-1/4 w-72 h-72 bg-blue-700/20 rounded-full blur-3xl transition-opacity duration-700 ${
+                  isSpeaking ? 'opacity-80 animate-pulse' : 'opacity-30'
+                }`}
+              />
+            </div>
+
+            <div className="absolute top-5 left-5 flex items-center gap-2.5 z-10">
+              <span
+                className={`inline-block w-1.5 h-1.5 rounded-full ${
+                  isSpeaking ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
+                }`}
+              />
+              <span className="text-[11px] font-bold tracking-[0.18em] text-sky-300">
+                AI 면접관 · COACH
+              </span>
+            </div>
+
+            <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+              <button
+                onClick={speakAgain}
+                disabled={isMuted}
+                className="bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700 backdrop-blur rounded-full p-2 transition"
+                title="질문 다시 듣기"
+              >
+                <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 4v6h6" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+              </button>
+              <button
+                onClick={toggleMute}
+                className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 backdrop-blur rounded-full p-2 transition"
+                title={isMuted ? '음소거 해제' : '음소거'}
+              >
+                {isMuted ? (
+                  <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </svg>
+                )}
+              </button>
+            </div>
+
+            <div className="relative flex flex-col items-center justify-center h-full px-8 py-14">
+              {/* ORB (말할 때 펄스 + 글로우 강화) */}
+              <div className="relative mb-8">
+                <div
+                  className={`absolute inset-0 rounded-full bg-sky-400/30 blur-2xl transition-all duration-500 ${
+                    isSpeaking ? 'animate-ping scale-150' : 'scale-100'
+                  }`}
+                />
+                <div
+                  className={`absolute inset-0 rounded-full bg-blue-500/30 blur-xl transition-opacity duration-300 ${
+                    isSpeaking ? 'opacity-100 animate-pulse' : 'opacity-60'
+                  }`}
+                />
+                <div className="relative w-36 h-36 rounded-full bg-gradient-to-br from-sky-400 via-blue-500 to-blue-700 shadow-2xl shadow-blue-500/60 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/40 rounded-full" />
+                  <div
+                    className={`absolute top-1/3 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-white/30 blur-md transition-transform duration-300 ${
+                      isSpeaking ? 'scale-110' : 'scale-100'
+                    }`}
+                  />
+                  <div className="absolute inset-4 rounded-full border border-white/20" />
+                  <div className="absolute inset-8 rounded-full border border-white/15" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xs font-bold text-sky-400 tracking-wider">
+                  Q{currentIndex + 1}
+                </span>
+                {currentQuestion?.category && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium">
+                    {currentQuestion.category}
+                  </span>
+                )}
+              </div>
+
+              <p className="text-center text-lg md:text-xl font-medium leading-relaxed text-white max-w-xl min-h-[4rem]">
+                "{displayed}"
+                {displayed.length < (currentQuestion?.text?.length ?? 0) && (
+                  <span className="inline-block w-1 h-5 bg-sky-400 ml-0.5 animate-pulse align-middle" />
+                )}
+              </p>
+
+              {/* 음파 시각화 */}
+              <div className="flex items-end justify-center gap-1.5 mt-6 h-8">
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <span
+                    key={i}
+                    className={`w-1 rounded-full bg-gradient-to-t from-sky-500 to-blue-300 ${
+                      isSpeaking ? 'animate-wave' : 'opacity-30'
+                    }`}
+                    style={
+                      isSpeaking
+                        ? {
+                            animationDelay: `${i * 0.07}s`,
+                            animationDuration: `${0.55 + (i % 3) * 0.12}s`,
+                            height: `${36 + (i % 4) * 10}%`,
+                          }
+                        : { height: '6px' }
+                    }
+                  />
+                ))}
+              </div>
+
+              {currentQuestion?.intent && (
+                <p className="text-xs text-slate-500 mt-6 text-center max-w-md italic">
+                  {currentQuestion.intent}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 카메라 PIP + 컨트롤 */}
+          <div className="md:col-span-2 flex flex-col gap-4">
+            <div className="relative aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-slate-800/80 flex-shrink-0">
               {demoMode ? (
                 <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex flex-col items-center justify-center text-slate-400">
-                  <svg
-                    className="w-14 h-14 mb-3 opacity-50"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg className="w-10 h-10 mb-2 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 7l-7 5 7 5V7zM14 5H3a2 2 0 00-2 2v10a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2z" />
                   </svg>
-                  <p className="text-sm font-medium">카메라가 연결되지 않았습니다</p>
-                  <p className="text-xs text-slate-500 mt-1">데모 모드로 흐름을 진행합니다</p>
+                  <p className="text-xs">카메라 미연결</p>
                 </div>
               ) : (
                 <video
@@ -276,52 +469,35 @@ export default function InterviewPage() {
                 />
               )}
               {isRecording && (
-                <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                  <span className="text-xs font-semibold text-rose-200">REC</span>
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  <span className="text-[10px] font-semibold text-rose-200">REC</span>
                 </div>
               )}
               {demoMode && (
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 backdrop-blur-sm px-3 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  <span className="text-[10px] font-semibold tracking-wider text-amber-200">DEMO</span>
+                <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-500/15 border border-amber-400/30 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                  <span className="w-1 h-1 rounded-full bg-amber-400" />
+                  <span className="text-[9px] font-semibold tracking-wider text-amber-200">DEMO</span>
                 </div>
               )}
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300/80">
-                <span>{demoMode ? '데모 프리뷰' : '실시간 프리뷰'}</span>
+              <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] text-slate-300/80">
+                <span>{demoMode ? '데모' : '나'}</span>
                 <span className="tabular-nums">{Math.round(progressPct)}%</span>
               </div>
             </div>
-          </div>
 
-          <div className="md:col-span-2 flex flex-col">
-            <div className="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-2xl p-6 flex-1 flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs font-bold text-sky-400 tracking-wider">
-                  Q{currentIndex + 1}
-                </span>
-                {currentQuestion?.category && (
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium">
-                    {currentQuestion.category}
-                  </span>
-                )}
-              </div>
-              <p className="text-xl leading-relaxed font-medium tracking-tight flex-1">
-                {currentQuestion?.text}
+            <div className="flex-1 bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-2xl p-5 flex flex-col">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {!isRecording
+                  ? '면접관의 질문을 듣고 답변할 준비가 되면 시작하세요.'
+                  : '답변이 끝나면 다음 버튼을 누르세요. 영상은 백그라운드로 업로드됩니다.'}
               </p>
-              {currentQuestion?.intent && (
-                <p className="text-xs text-slate-500 mt-4 pt-4 border-t border-slate-800/60">
-                  의도: {currentQuestion.intent}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-4">
+              <div className="flex-1" />
               {!isRecording ? (
                 <button
                   onClick={beginCountdown}
                   disabled={countdown !== null}
-                  className="w-full group bg-gradient-to-r from-rose-500 to-red-600 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 transition-all flex items-center justify-center gap-2"
+                  className="w-full group bg-gradient-to-r from-rose-500 to-red-600 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 transition-all flex items-center justify-center gap-2 mt-4"
                 >
                   <span className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition" />
                   {countdown !== null ? '준비 중…' : '답변 시작'}
@@ -329,7 +505,7 @@ export default function InterviewPage() {
               ) : (
                 <button
                   onClick={handleNext}
-                  className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-xl hover:shadow-sky-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-xl hover:shadow-sky-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-4"
                 >
                   {isLast ? '면접 종료' : '다음 질문'}
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -339,13 +515,6 @@ export default function InterviewPage() {
               )}
             </div>
           </div>
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-500">
-            <span className="text-slate-400">팁:</span> 카메라를 정면으로 바라보고, 손짓은 자연스럽게.
-            답변이 끝나면 <span className="text-sky-400 font-medium">다음 질문</span> 버튼을 누르세요.
-          </p>
         </div>
       </main>
     </div>

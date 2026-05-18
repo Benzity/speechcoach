@@ -67,11 +67,15 @@ export default function InterviewPage() {
     window.speechSynthesis.cancel()
     const utter = new SpeechSynthesisUtterance(text)
     utter.lang = 'ko-KR'
-    utter.rate = 1.0
-    utter.pitch = 1.05
+    utter.rate = 0.92
+    utter.pitch = 1.0
     const voices = window.speechSynthesis.getVoices()
-    const koVoice = voices.find((v) => v.lang.startsWith('ko'))
-    if (koVoice) utter.voice = koVoice
+    const priority = ['Google 한국의', 'Yuna', 'Google Korean']
+    const best =
+      priority.reduce<SpeechSynthesisVoice | null>((found, name) => {
+        return found ?? voices.find((v) => v.name.includes(name)) ?? null
+      }, null) ?? voices.find((v) => v.lang.startsWith('ko')) ?? null
+    if (best) utter.voice = best
     utter.onstart = () => setIsSpeaking(true)
     utter.onend = () => setIsSpeaking(false)
     utter.onerror = () => setIsSpeaking(false)

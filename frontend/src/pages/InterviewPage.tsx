@@ -29,6 +29,66 @@ export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const ELEVEN_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string | undefined
+  const ELEVEN_VOICE = 'XB0fDUnXU5powFXDhCwa' // Charlotte — 자연스러운 다국어 여성 목소리
+
+  async function speakWithElevenLabs(text: string) {
+    if (!ELEVEN_KEY) return false
+    try {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': ELEVEN_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        }),
+      })
+      if (!res.ok) return false
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      audioRef.current?.pause()
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onplay = () => setIsSpeaking(true)
+      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url) }
+      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url) }
+      await audio.play()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function speakWithBrowser(text: string) {
+    if (!('speechSynthesis' in window)) return
+    window.speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = 'ko-KR'
+    utter.rate = 1.0
+    utter.pitch = 1.05
+    const voices = window.speechSynthesis.getVoices()
+    const koVoice = voices.find((v) => v.lang.startsWith('ko'))
+    if (koVoice) utter.voice = koVoice
+    utter.onstart = () => setIsSpeaking(true)
+    utter.onend = () => setIsSpeaking(false)
+    utter.onerror = () => setIsSpeaking(false)
+    window.speechSynthesis.speak(utter)
+  }
+
+  async function speak(text: string) {
+    const ok = await speakWithElevenLabs(text)
+    if (!ok) speakWithBrowser(text)
+  }
+
+  function stopSpeaking() {
+    audioRef.current?.pause()
+    audioRef.current = null
+    window.speechSynthesis?.cancel()
+    setIsSpeaking(false)
+  }
 
   useEffect(() => {
     if (!sessionId) return
@@ -84,58 +144,29 @@ export default function InterviewPage() {
     }, 35)
 
     // speech
-    if (!isMuted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      const utter = new SpeechSynthesisUtterance(text)
-      utter.lang = 'ko-KR'
-      utter.rate = 1.0
-      utter.pitch = 1.05
-      const voices = window.speechSynthesis.getVoices()
-      const koVoice = voices.find((v) => v.lang.startsWith('ko'))
-      if (koVoice) utter.voice = koVoice
-      utter.onstart = () => setIsSpeaking(true)
-      utter.onend = () => setIsSpeaking(false)
-      utter.onerror = () => setIsSpeaking(false)
-      window.speechSynthesis.speak(utter)
-    }
+    if (!isMuted) speak(text)
 
     return () => {
       window.clearInterval(tInterval)
-      window.speechSynthesis?.cancel()
-      setIsSpeaking(false)
+      stopSpeaking()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, session])
 
   useEffect(() => {
-    return () => {
-      window.speechSynthesis?.cancel()
-    }
+    return () => { stopSpeaking() }
   }, [])
 
   const speakAgain = () => {
     if (!session) return
     const text = session.questions[currentIndex]?.text
-    if (!text || !('speechSynthesis' in window)) return
-    window.speechSynthesis.cancel()
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'ko-KR'
-    utter.rate = 1.0
-    utter.pitch = 1.05
-    const voices = window.speechSynthesis.getVoices()
-    const koVoice = voices.find((v) => v.lang.startsWith('ko'))
-    if (koVoice) utter.voice = koVoice
-    utter.onstart = () => setIsSpeaking(true)
-    utter.onend = () => setIsSpeaking(false)
-    utter.onerror = () => setIsSpeaking(false)
-    window.speechSynthesis.speak(utter)
+    if (!text) return
+    stopSpeaking()
+    speak(text)
   }
 
   const toggleMute = () => {
-    if (!isMuted) {
-      window.speechSynthesis?.cancel()
-      setIsSpeaking(false)
-    }
+    if (!isMuted) stopSpeaking()
     setIsMuted((m) => !m)
   }
 

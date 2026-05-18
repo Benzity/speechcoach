@@ -2,6 +2,9 @@
 // prod(Netlify 등): VITE_API_BASE='https://backend.example.com' → 절대 URL 호출 + 백엔드 CORS
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') ?? ''
 
+// ngrok 무료 플랜 브라우저 경고 페이지 우회
+const EXTRA_HEADERS: HeadersInit = API_BASE ? { 'ngrok-skip-browser-warning': 'true' } : {}
+
 export type QuestionRead = {
   id: string
   q_index: number
@@ -88,12 +91,12 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
   if (input.resumePdf) form.append('resume_pdf', input.resumePdf)
   else if (input.resumeText) form.append('resume_text', input.resumeText)
   form.append('question_count', String(input.questionCount))
-  const res = await fetch(`${API_BASE}/api/sessions`, { method: 'POST', body: form })
+  const res = await fetch(`${API_BASE}/api/sessions`, { method: 'POST', headers: EXTRA_HEADERS, body: form })
   return jsonOrThrow<SessionRead>(res, `요청 실패 (${res.status})`)
 }
 
 export async function getSession(sessionId: string): Promise<SessionRead> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`)
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`, { headers: EXTRA_HEADERS })
   return jsonOrThrow<SessionRead>(res, '세션을 불러올 수 없습니다.')
 }
 
@@ -106,25 +109,26 @@ export async function uploadAnswer(
   form.append('video', video, `${qIndex}.webm`)
   const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/answers/${qIndex}`, {
     method: 'POST',
+    headers: EXTRA_HEADERS,
     body: form,
   })
   return jsonOrThrow<AnswerUploadResponse>(res, `업로드 실패 (${res.status})`)
 }
 
 export async function getAnalysisStatus(sessionId: string): Promise<AnalysisStatus> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/analysis-status`)
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/analysis-status`, { headers: EXTRA_HEADERS })
   return jsonOrThrow<AnalysisStatus>(res, '분석 상태 조회 실패')
 }
 
 export async function triggerFeedback(
   sessionId: string,
 ): Promise<{ session_id: string; status: string }> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/feedback`, { method: 'POST' })
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/feedback`, { method: 'POST', headers: EXTRA_HEADERS })
   return jsonOrThrow(res, '종합 피드백 생성에 실패했습니다.')
 }
 
 export async function getResult(sessionId: string): Promise<ResultResponse> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/result`)
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/result`, { headers: EXTRA_HEADERS })
   return jsonOrThrow<ResultResponse>(res, '결과를 불러올 수 없습니다.')
 }
 

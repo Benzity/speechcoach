@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent  # backend/
 load_dotenv(BASE_DIR / ".env")
 
 HOST = os.getenv("HOST", "127.0.0.1")
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "8002"))
 
 VIDEO_DIR = Path(os.getenv("VIDEO_DIR") or (BASE_DIR / "data" / "videos"))
 DB_PATH = Path(os.getenv("DB_PATH") or (BASE_DIR / "data" / "app.db"))

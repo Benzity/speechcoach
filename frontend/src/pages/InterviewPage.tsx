@@ -32,7 +32,7 @@ export default function InterviewPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const ELEVEN_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string | undefined
-  const ELEVEN_VOICE = 'XB0fDUnXU5powFXDhCwa' // Charlotte — 자연스러운 다국어 여성 목소리
+  const ELEVEN_VOICE = '21m00Tcm4TlvDq8ikWAM' // Rachel — 무료 플랜 기본 여성 목소리
 
   async function speakWithElevenLabs(text: string) {
     if (!ELEVEN_KEY) return false

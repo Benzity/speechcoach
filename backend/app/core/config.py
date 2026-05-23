@@ -19,5 +19,11 @@ WHISPER_MODEL = os.getenv("WHISPER_MODEL", "large-v3")
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cuda")
 
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET 환경변수가 설정되지 않았습니다. backend/.env를 확인하세요.")
+JWT_ALGORITHM = "HS256"
+JWT_ACCESS_TTL_DAYS = int(os.getenv("JWT_ACCESS_TTL_DAYS", "7"))
+
 VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)

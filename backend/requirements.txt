@@ -11,3 +11,5 @@ mediapipe
 librosa
 ffmpeg-python
 numpy
+bcrypt
+PyJWT

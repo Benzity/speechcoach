@@ -1,9 +1,39 @@
-// dev: VITE_API_BASE 없음 → '' → '/api/...' → Vite proxy로 127.0.0.1:8000
-// prod(Netlify 등): VITE_API_BASE='https://backend.example.com' → 절대 URL 호출 + 백엔드 CORS
+// dev: VITE_API_BASE 없음 → '' → '/api/...' → Vite proxy로 127.0.0.1:8002
+// prod(옵션 A): 백엔드가 frontend도 같이 서빙 → 같은 origin → VITE_API_BASE 비워둠
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') ?? ''
 
 // ngrok 무료 플랜 브라우저 경고 페이지 우회
 const EXTRA_HEADERS: HeadersInit = API_BASE ? { 'ngrok-skip-browser-warning': 'true' } : {}
+
+const TOKEN_KEY = 'speechcoach.token'
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+export function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const headers = { ...EXTRA_HEADERS, ...authHeaders(), ...(init.headers ?? {}) }
+  const res = await fetch(url, { ...init, headers })
+  if (res.status === 401) {
+    clearToken()
+    const path = window.location.pathname
+    if (path !== '/login' && path !== '/signup') {
+      window.location.href = '/login'
+    }
+  }
+  return res
+}
 
 export type QuestionRead = {
   id: string
@@ -70,6 +100,25 @@ export type FeedbackJson = {
   positive_points: string[]
 }
 
+// ===== Auth =====
+export type UserRead = {
+  id: string
+  email: string
+  display_name: string | null
+  created_at: string
+}
+
+type TokenResponse = { access_token: string; token_type: string }
+
+export type SessionListItem = {
+  id: string
+  job_title: string
+  question_count: number
+  status: SessionStatus
+  created_at: string
+  overall_score: number | null
+}
+
 type CreateSessionInput = {
   jobTitle: string
   resumeText?: string
@@ -86,6 +135,44 @@ async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export async function apiSignup(
+  email: string,
+  password: string,
+  displayName?: string,
+): Promise<TokenResponse> {
+  const res = await authedFetch(`${API_BASE}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, display_name: displayName }),
+  })
+  return jsonOrThrow<TokenResponse>(res, '회원가입에 실패했습니다.')
+}
+
+export async function apiLogin(email: string, password: string): Promise<TokenResponse> {
+  const res = await authedFetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  return jsonOrThrow<TokenResponse>(res, '로그인에 실패했습니다.')
+}
+
+export async function apiMe(): Promise<UserRead> {
+  const res = await authedFetch(`${API_BASE}/api/auth/me`)
+  return jsonOrThrow<UserRead>(res, '내 정보를 불러올 수 없습니다.')
+}
+
+export async function listMySessions(): Promise<SessionListItem[]> {
+  const res = await authedFetch(`${API_BASE}/api/me/sessions`)
+  return jsonOrThrow<SessionListItem[]>(res, '히스토리를 불러올 수 없습니다.')
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`삭제 실패 (${res.status})`)
+}
+
+// ===== Sessions =====
 export async function createSession(input: CreateSessionInput): Promise<SessionRead> {
   const form = new FormData()
   form.append('job_title', input.jobTitle)
@@ -93,12 +180,12 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
   else if (input.resumeText) form.append('resume_text', input.resumeText)
   if (input.idealProfile) form.append('ideal_profile', input.idealProfile)
   form.append('question_count', String(input.questionCount))
-  const res = await fetch(`${API_BASE}/api/sessions`, { method: 'POST', headers: EXTRA_HEADERS, body: form })
+  const res = await authedFetch(`${API_BASE}/api/sessions`, { method: 'POST', body: form })
   return jsonOrThrow<SessionRead>(res, `요청 실패 (${res.status})`)
 }
 
 export async function getSession(sessionId: string): Promise<SessionRead> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`, { headers: EXTRA_HEADERS })
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}`)
   return jsonOrThrow<SessionRead>(res, '세션을 불러올 수 없습니다.')
 }
 
@@ -109,28 +196,27 @@ export async function uploadAnswer(
 ): Promise<AnswerUploadResponse> {
   const form = new FormData()
   form.append('video', video, `${qIndex}.webm`)
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/answers/${qIndex}`, {
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/answers/${qIndex}`, {
     method: 'POST',
-    headers: EXTRA_HEADERS,
     body: form,
   })
   return jsonOrThrow<AnswerUploadResponse>(res, `업로드 실패 (${res.status})`)
 }
 
 export async function getAnalysisStatus(sessionId: string): Promise<AnalysisStatus> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/analysis-status`, { headers: EXTRA_HEADERS })
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/analysis-status`)
   return jsonOrThrow<AnalysisStatus>(res, '분석 상태 조회 실패')
 }
 
 export async function triggerFeedback(
   sessionId: string,
 ): Promise<{ session_id: string; status: string }> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/feedback`, { method: 'POST', headers: EXTRA_HEADERS })
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/feedback`, { method: 'POST' })
   return jsonOrThrow(res, '종합 피드백 생성에 실패했습니다.')
 }
 
 export async function getResult(sessionId: string): Promise<ResultResponse> {
-  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/result`, { headers: EXTRA_HEADERS })
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/result`)
   return jsonOrThrow<ResultResponse>(res, '결과를 불러올 수 없습니다.')
 }
 

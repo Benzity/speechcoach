@@ -25,12 +25,13 @@ SYSTEM_PROMPT = """당신은 시니어 면접관이자 채용 컨설턴트입니
 5. 모든 질문은 한국어로, 자연스러운 면접관 톤"""
 
 
-def _build_user_prompt(job_title: str, resume_text: str, n: int) -> str:
+def _build_user_prompt(job_title: str, resume_text: str, n: int, ideal_profile: str | None) -> str:
+    ideal_section = f"\n[인재상/채용 기준]\n{ideal_profile}\n" if ideal_profile else ""
     return f"""아래 후보자에 대해 면접 질문을 정확히 {n}개 생성해주세요.
 
 [관심 직무]
 {job_title}
-
+{ideal_section}
 [이력서]
 {resume_text}
 
@@ -52,14 +53,14 @@ def _build_user_prompt(job_title: str, resume_text: str, n: int) -> str:
 """
 
 
-def generate_questions(job_title: str, resume_text: str, n: int) -> list[dict[str, Any]]:
+def generate_questions(job_title: str, resume_text: str, n: int, ideal_profile: str | None = None) -> list[dict[str, Any]]:
     if not ANTHROPIC_API_KEY:
         raise QuestionGenerationError(
             "서버에 ANTHROPIC_API_KEY가 설정되어 있지 않습니다. 관리자에게 문의해주세요."
         )
 
     client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    user_prompt = _build_user_prompt(job_title, resume_text, n)
+    user_prompt = _build_user_prompt(job_title, resume_text, n, ideal_profile)
 
     logger.info("Claude 질문 생성 요청 model=%s n=%d", CLAUDE_MODEL, n)
     try:

@@ -10,6 +10,7 @@ export default function OnboardingPage() {
   const [resumeTab, setResumeTab] = useState<ResumeTab>('text')
   const [resumeText, setResumeText] = useState('')
   const [resumePdf, setResumePdf] = useState<File | null>(null)
+  const [idealProfile, setIdealProfile] = useState('')
   const [questionCount, setQuestionCount] = useState(5)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +29,7 @@ export default function OnboardingPage() {
         jobTitle,
         resumeText: resumeTab === 'text' ? resumeText : undefined,
         resumePdf: resumeTab === 'pdf' ? resumePdf ?? undefined : undefined,
+        idealProfile: idealProfile.trim() || undefined,
         questionCount,
       })
       navigate(`/interview/${session.id}`)
@@ -125,6 +127,18 @@ export default function OnboardingPage() {
                 )}
               </label>
             )}
+          </Field>
+
+          <Field label="인재상 (선택)">
+            <textarea
+              value={idealProfile}
+              onChange={(e) => setIdealProfile(e.target.value)}
+              rows={4}
+              maxLength={1000}
+              placeholder="예: 주도적으로 문제를 해결하는 인재, 협업을 중시하는 문화, 빠른 실행력과 데이터 기반 사고…"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-100 transition resize-none text-sm leading-relaxed"
+            />
+            <p className="text-xs text-slate-400 mt-1.5">입력하면 해당 인재상 기준으로 질문과 피드백이 맞춤 생성됩니다.</p>
           </Field>
 
           <Field label={`질문 개수: ${questionCount}개`}>

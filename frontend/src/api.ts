@@ -74,6 +74,7 @@ type CreateSessionInput = {
   jobTitle: string
   resumeText?: string
   resumePdf?: File
+  idealProfile?: string
   questionCount: number
 }
 
@@ -90,6 +91,7 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
   form.append('job_title', input.jobTitle)
   if (input.resumePdf) form.append('resume_pdf', input.resumePdf)
   else if (input.resumeText) form.append('resume_text', input.resumeText)
+  if (input.idealProfile) form.append('ideal_profile', input.idealProfile)
   form.append('question_count', String(input.questionCount))
   const res = await fetch(`${API_BASE}/api/sessions`, { method: 'POST', headers: EXTRA_HEADERS, body: form })
   return jsonOrThrow<SessionRead>(res, `요청 실패 (${res.status})`)

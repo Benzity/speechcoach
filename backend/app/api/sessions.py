@@ -8,11 +8,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.config import VIDEO_DIR
+from app.core.deps import get_current_user
 from app.db.database import get_db
 from app.db.models import Analysis as AnalysisModel
 from app.db.models import Feedback as FeedbackModel
 from app.db.models import Question as QuestionModel
 from app.db.models import Session as SessionModel
+from app.db.models import User as UserModel
 from app.schemas.sessions import (
     AnalysisStatusResponse,
     AnswerUploadResponse,
@@ -29,6 +31,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["sessions"])
 
 
+def _get_owned_session(
+    session_id: str, user: UserModel, db: DbSession
+) -> SessionModel:
+    """세션 조회 + 소유자 검증. 없거나 남의 것이면 404 (정보 노출 최소화)."""
+    row = db.get(SessionModel, session_id)
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    return row
+
+
 @router.post(
     "/sessions",
     response_model=SessionRead,
@@ -39,8 +51,10 @@ def create_session(
     job_title: str = Form(...),
     resume_text: str | None = Form(None),
     resume_pdf: UploadFile | None = File(None),
+    ideal_profile: str | None = Form(None),
     question_count: int = Form(5),
     db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionModel:
     if not (3 <= question_count <= 15):
         raise HTTPException(status_code=400, detail="질문 개수는 3~15 사이여야 합니다.")
@@ -64,7 +78,7 @@ def create_session(
         )
 
     try:
-        question_dicts = generate_questions(job_title.strip(), text, question_count)
+        question_dicts = generate_questions(job_title.strip(), text, question_count, ideal_profile)
     except QuestionGenerationError as e:
         logger.error("질문 생성 실패: %s", e)
         raise HTTPException(status_code=502, detail=str(e)) from e
@@ -72,8 +86,10 @@ def create_session(
     session_id = str(uuid.uuid4())
     session_row = SessionModel(
         id=session_id,
+        user_id=current_user.id,
         job_title=job_title.strip(),
         resume_text=text,
+        ideal_profile=ideal_profile.strip() if ideal_profile else None,
         question_count=question_count,
         status="created",
     )
@@ -100,11 +116,12 @@ def create_session(
     response_model=SessionRead,
     summary="세션 상태 + 질문 목록 조회",
 )
-def get_session(session_id: str, db: DbSession = Depends(get_db)) -> SessionModel:
-    row = db.get(SessionModel, session_id)
-    if not row:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
-    return row
+def get_session(
+    session_id: str,
+    db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> SessionModel:
+    return _get_owned_session(session_id, current_user, db)
 
 
 @router.post(
@@ -118,10 +135,9 @@ def upload_answer(
     q_index: int,
     video: UploadFile = File(...),
     db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> AnswerUploadResponse:
-    session_row = db.get(SessionModel, session_id)
-    if not session_row:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    session_row = _get_owned_session(session_id, current_user, db)
 
     question = (
         db.query(QuestionModel)
@@ -184,11 +200,11 @@ def upload_answer(
     summary="세션 내 모든 질문의 분석 진행 상태 (FR-5.1/5.2)",
 )
 def get_analysis_status(
-    session_id: str, db: DbSession = Depends(get_db)
+    session_id: str,
+    db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> AnalysisStatusResponse:
-    session_row = db.get(SessionModel, session_id)
-    if not session_row:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    _get_owned_session(session_id, current_user, db)
 
     questions = db.query(QuestionModel).filter_by(session_id=session_id).all()
     counts = {"queued": 0, "processing": 0, "completed": 0, "failed": 0}
@@ -214,11 +230,11 @@ def get_analysis_status(
     summary="종합 피드백 생성 (UC-06, FR-5.x). 동기 호출 — 응답까지 5~15초.",
 )
 def trigger_feedback(
-    session_id: str, db: DbSession = Depends(get_db)
+    session_id: str,
+    db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> FeedbackTriggerResponse:
-    session_row = db.get(SessionModel, session_id)
-    if not session_row:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    session_row = _get_owned_session(session_id, current_user, db)
 
     if db.get(FeedbackModel, session_id):
         # 이미 생성된 피드백 — idempotent
@@ -263,6 +279,7 @@ def trigger_feedback(
     payload = {
         "job_title": session_row.job_title,
         "resume_text": session_row.resume_text,
+        "ideal_profile": session_row.ideal_profile,
         "questions": payload_questions,
     }
 
@@ -294,11 +311,11 @@ def trigger_feedback(
     summary="결과 페이지용 최종 데이터 (세션 + 질문 + 분석 + 피드백)",
 )
 def get_result(
-    session_id: str, db: DbSession = Depends(get_db)
+    session_id: str,
+    db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResultResponse:
-    session_row = db.get(SessionModel, session_id)
-    if not session_row:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    session_row = _get_owned_session(session_id, current_user, db)
 
     analyses = [db.get(AnalysisModel, q.id) for q in session_row.questions]
     feedback_row = db.get(FeedbackModel, session_id)
@@ -315,11 +332,40 @@ def get_result(
     summary="녹화 영상 스트리밍 (FR-6.2). starlette FileResponse가 Range 자동 지원.",
     responses={200: {"content": {"video/webm": {}}}},
 )
-def stream_answer_video(session_id: str, q_index: int):
+def stream_answer_video(
+    session_id: str,
+    q_index: int,
+    db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    _get_owned_session(session_id, current_user, db)
     video_path = VIDEO_DIR / session_id / f"{q_index}.webm"
     if not video_path.exists():
         raise HTTPException(status_code=404, detail="영상 파일을 찾을 수 없습니다.")
     return FileResponse(video_path, media_type="video/webm")
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="세션 삭제 (DB cascade + 영상 디렉토리)",
+)
+def delete_session(
+    session_id: str,
+    db: DbSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    import shutil
+
+    session_row = _get_owned_session(session_id, current_user, db)
+
+    video_dir = VIDEO_DIR / session_id
+    if video_dir.exists():
+        shutil.rmtree(video_dir, ignore_errors=True)
+
+    db.delete(session_row)
+    db.commit()
+    logger.info("세션 삭제 session=%s user=%s", session_id, current_user.id)
 
 
 def _safe_json(raw: str | None):

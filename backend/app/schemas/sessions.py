@@ -23,6 +23,7 @@ class SessionRead(BaseModel):
 
     id: str
     job_title: str
+    ideal_profile: str | None = None
     question_count: int
     status: SessionStatus
     questions: list[QuestionRead]
@@ -71,3 +72,13 @@ class SessionResultResponse(BaseModel):
     session: SessionRead
     analyses: list[AnalysisRead]
     feedback: FeedbackRead | None = None
+
+
+class SessionListItem(BaseModel):
+    """히스토리 목록용 — 카드 1개에 필요한 만큼만."""
+    id: str
+    job_title: str
+    question_count: int
+    status: SessionStatus
+    created_at: datetime
+    overall_score: float | None = None

@@ -36,11 +36,12 @@ SYSTEM_PROMPT = """당신은 시니어 면접관이자 커뮤니케이션 코치
 
 
 def _build_user_prompt(payload: dict[str, Any]) -> str:
+    ideal_section = f"\n[인재상/채용 기준]\n{payload['ideal_profile']}\n" if payload.get("ideal_profile") else ""
     return f"""아래 모의면접 데이터를 기반으로 종합 피드백 JSON을 생성해주세요.
 
 [직무]
 {payload["job_title"]}
-
+{ideal_section}
 [이력서 요약]
 {payload["resume_text"][:1500]}
 

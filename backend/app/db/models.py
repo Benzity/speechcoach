@@ -1,4 +1,4 @@
-"""SRS 5.2 데이터 모델 — sessions / questions / analyses / feedback."""
+"""SRS 5.2 데이터 모델 — users / sessions / questions / analyses / feedback."""
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -7,17 +7,36 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    email: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    sessions: Mapped[list["Session"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
 class Session(Base):
     __tablename__ = "sessions"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id"), nullable=False, index=True
+    )
     job_title: Mapped[str] = mapped_column(String, nullable=False)
     resume_text: Mapped[str] = mapped_column(Text, nullable=False)
+    ideal_profile: Mapped[str | None] = mapped_column(Text, nullable=True)
     question_count: Mapped[int] = mapped_column(Integer, nullable=False)
     # 'created' | 'in_progress' | 'analyzing' | 'completed' | 'failed'
     status: Mapped[str] = mapped_column(String, nullable=False, default="created")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    user: Mapped["User"] = relationship(back_populates="sessions")
     questions: Mapped[list["Question"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", order_by="Question.q_index"
     )

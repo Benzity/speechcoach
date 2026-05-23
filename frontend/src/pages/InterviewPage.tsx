@@ -42,37 +42,11 @@ export default function InterviewPage() {
   const ELEVEN_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string | undefined
   const ELEVEN_VOICE = '21m00Tcm4TlvDq8ikWAM' // Rachel — 무료 플랜 기본 여성 목소리
 
-  async function speakWithElevenLabs(text: string) {
-    if (!ELEVEN_KEY) return false
-    speakAbortRef.current?.abort()
-    const controller = new AbortController()
-    speakAbortRef.current = controller
-    try {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
-        method: 'POST',
-        headers: { 'xi-api-key': ELEVEN_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-        }),
-        signal: controller.signal,
-      })
-      if (!res.ok || controller.signal.aborted) return false
-      const blob = await res.blob()
-      if (controller.signal.aborted) return false
-      const url = URL.createObjectURL(blob)
-      audioRef.current?.pause()
-      const audio = new Audio(url)
-      audioRef.current = audio
-      audio.onplay = () => setIsSpeaking(true)
-      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url) }
-      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url) }
-      await audio.play()
-      return true
-    } catch {
-      return false
-    }
+  // 시연용: ElevenLabs 무료 플랜 quota 소진(402)으로 비활성화. 브라우저 TTS 단독 사용.
+  // 향후 키 복구 시 이 함수 본문을 원복하고 speak()에서 호출만 되살리면 됨.
+  async function speakWithElevenLabs(_text: string): Promise<boolean> {
+    void ELEVEN_KEY; void ELEVEN_VOICE
+    return false
   }
 
   function speakWithBrowser(text: string) {

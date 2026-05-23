@@ -1,5 +1,7 @@
 # SpeechCoach AI — 인증 & 면접 히스토리 로드맵
 
+> **상태: 구현 완료 ✅ (2026-05-23).** 아래 모든 Phase가 코드에 반영됨. 마일스톤·체크리스트는 회고/시연 가이드로 보관.
+
 > 목표: 익명 세션 기반인 현재 구조에 **회원가입/로그인**과 **사용자별 면접 히스토리 누적**을 더한다.
 > 기존 흐름(세션 생성 → 영상 답변 → 분석 → 피드백)은 그대로 두고, 그 위에 **소유자(User)** 개념만 얹는 방식.
 
@@ -79,31 +81,31 @@ user: Mapped["User"] = relationship(back_populates="sessions")
 ### Phase 1 — 인증 코어 (1일)
 **목표**: 회원가입/로그인/내정보 조회 동작.
 
-- [ ] `requirements.txt`에 `passlib[bcrypt]`, `python-jose[cryptography]` 추가
-- [ ] `app/core/config.py`에 `JWT_SECRET`, `JWT_ALGORITHM="HS256"`, `ACCESS_TTL_DAYS=7` 추가 (env에서 로드, 기본값 없음 → 부팅 실패로 알림)
-- [ ] `app/db/models.py`에 `User` 모델 추가, `Session.user_id` FK 추가 (NOT NULL)
-- [ ] `app/schemas/auth.py` 신설: `SignupRequest`, `LoginRequest`, `TokenResponse`, `UserRead`
-- [ ] `app/services/auth.py` 신설:
+- [x] `requirements.txt`에 `passlib[bcrypt]`, `python-jose[cryptography]` 추가
+- [x] `app/core/config.py`에 `JWT_SECRET`, `JWT_ALGORITHM="HS256"`, `ACCESS_TTL_DAYS=7` 추가 (env에서 로드, 기본값 없음 → 부팅 실패로 알림)
+- [x] `app/db/models.py`에 `User` 모델 추가, `Session.user_id` FK 추가 (NOT NULL)
+- [x] `app/schemas/auth.py` 신설: `SignupRequest`, `LoginRequest`, `TokenResponse`, `UserRead`
+- [x] `app/services/auth.py` 신설:
   - `hash_password(plain) -> str`
   - `verify_password(plain, hashed) -> bool`
   - `create_access_token(user_id) -> str`
   - `decode_token(token) -> dict`
-- [ ] `app/api/auth.py` 신설:
+- [x] `app/api/auth.py` 신설:
   - `POST /api/auth/signup` → 이메일 중복 검사, 가입 후 토큰 반환
   - `POST /api/auth/login` → 토큰 반환
   - `GET /api/auth/me` → 현재 유저 정보
-- [ ] `app/core/deps.py` 신설:
+- [x] `app/core/deps.py` 신설:
   - `get_current_user(authorization: Header)` 의존성 (Bearer 파싱 + 토큰 검증)
-- [ ] `app/main.py`에 `auth_router` 등록
+- [x] `app/main.py`에 `auth_router` 등록
 
 **검증**: `curl`로 가입 → 로그인 → `/me` 호출까지 한 번 돌려본다.
 
 ### Phase 2 — 세션 소유권 (반나절)
 **목표**: 로그인한 사용자만 세션을 만들 수 있고, 자기 것만 조회 가능.
 
-- [ ] `POST /api/sessions` — `Depends(get_current_user)` 추가, `session_row.user_id = user.id`
-- [ ] `GET /api/sessions/{id}`, `analysis-status`, `feedback`, `result`, `video`, `answers/{q}` — 모두 `get_current_user` 의존성 + **`session.user_id != user.id`면 404(403보다 정보 노출 적음)**
-- [ ] 익명 호출은 401 반환
+- [x] `POST /api/sessions` — `Depends(get_current_user)` 추가, `session_row.user_id = user.id`
+- [x] `GET /api/sessions/{id}`, `analysis-status`, `feedback`, `result`, `video`, `answers/{q}` — 모두 `get_current_user` 의존성 + **`session.user_id != user.id`면 404(403보다 정보 노출 적음)**
+- [x] 익명 호출은 401 반환
 
 **검증**:
 - A 유저가 만든 세션을 B 유저 토큰으로 GET → 404
@@ -112,53 +114,53 @@ user: Mapped["User"] = relationship(back_populates="sessions")
 ### Phase 3 — 히스토리 API (반나절)
 **목표**: 마이페이지에서 과거 면접 목록 + 점수 요약 조회.
 
-- [ ] `GET /api/me/sessions` 신설
+- [x] `GET /api/me/sessions` 신설
   - 쿼리: `limit` (기본 20), `offset`, `status` 필터 (옵션)
   - 응답: `[{ id, job_title, question_count, status, created_at, overall_score }]`
   - `overall_score`는 `feedback.llm_response_json`의 `scores.overall` 추출 (없으면 null)
-- [ ] (옵션) `DELETE /api/sessions/{id}` — 자기 세션 삭제 (영상 파일 + DB row)
+- [x] (옵션) `DELETE /api/sessions/{id}` — 자기 세션 삭제 (영상 파일 + DB row)
 
 **검증**: 같은 유저로 세션 3개 만들고 `/api/me/sessions`가 3개 반환.
 
 ### Phase 4 — 시연 마감
-- [ ] `User.email` 유니크 위반 시 400 명확한 에러 ("이미 가입된 이메일입니다")
-- [ ] 비밀번호 정책: **4자 이상** (시연용. 데모 계정 만들기 편하게)
-- [ ] Rate limit, 비번 재설정, 이메일 인증 등 — **전부 스킵**
-- [ ] CORS `allow_credentials=False` 유지 (JWT 헤더 방식)
+- [x] `User.email` 유니크 위반 시 400 명확한 에러 ("이미 가입된 이메일입니다")
+- [x] 비밀번호 정책: **4자 이상** (시연용. 데모 계정 만들기 편하게)
+- [x] Rate limit, 비번 재설정, 이메일 인증 등 — **전부 스킵**
+- [x] CORS `allow_credentials=False` 유지 (JWT 헤더 방식)
 
 ---
 
 ## 4. 프론트엔드 작업
 
 ### Phase 1 — Auth 인프라
-- [ ] `src/auth/AuthContext.tsx`: `user`, `token`, `login()`, `signup()`, `logout()`
+- [x] `src/auth/AuthContext.tsx`: `user`, `token`, `login()`, `signup()`, `logout()`
   - 토큰은 **localStorage**에 저장 (시연용이라 XSS 걱정 사실상 불필요)
-- [ ] `src/api.ts`의 fetch helper에 `Authorization: Bearer ${token}` 자동 부착
-- [ ] 401 응답 시 토큰 삭제 + `/login` 리다이렉트 (refresh 로직 없음)
+- [x] `src/api.ts`의 fetch helper에 `Authorization: Bearer ${token}` 자동 부착
+- [x] 401 응답 시 토큰 삭제 + `/login` 리다이렉트 (refresh 로직 없음)
 
 ### Phase 2 — 라우트 추가
-- [ ] `/signup`, `/login`, `/history` 페이지 추가
-- [ ] `<ProtectedRoute>` 래퍼: 미로그인 시 `/login`으로
-- [ ] `StartPage`에서 "면접 시작" 누르면 로그인 강제
+- [x] `/signup`, `/login`, `/history` 페이지 추가
+- [x] `<ProtectedRoute>` 래퍼: 미로그인 시 `/login`으로
+- [x] `StartPage`에서 "면접 시작" 누르면 로그인 강제
 
 ### Phase 3 — 히스토리 페이지
-- [ ] 카드 리스트: 직무 / 생성일 / 상태 배지 / overall_score
-- [ ] 카드 클릭 → `/result/:id`로 이동 (이미 존재하는 결과 페이지 재사용)
-- [ ] 빈 상태 메시지
+- [x] 카드 리스트: 직무 / 생성일 / 상태 배지 / overall_score
+- [x] 카드 클릭 → `/result/:id`로 이동 (이미 존재하는 결과 페이지 재사용)
+- [x] 빈 상태 메시지
 
 ### Phase 4 — UX 마감
-- [ ] 헤더에 로그인 상태 표시 + 로그아웃 버튼
-- [ ] 로그인 폼 에러 메시지(이메일 형식, 비번 길이, 401 분기)
-- [ ] 토큰 만료 시 자연스럽게 재로그인 유도
+- [x] 헤더에 로그인 상태 표시 + 로그아웃 버튼
+- [x] 로그인 폼 에러 메시지(이메일 형식, 비번 길이, 401 분기)
+- [x] 토큰 만료 시 자연스럽게 재로그인 유도
 
 ---
 
 ## 5. 보안 체크리스트 (시연용 최소선)
 
-- [ ] `JWT_SECRET`은 `.env`로만 주입, 기본값 금지 (없으면 부팅 실패 → 실수 방지)
-- [ ] `UserRead` 스키마에 `password_hash` 포함 금지
-- [ ] 영상 스트리밍 엔드포인트도 인증 + 소유자 검증 (현재 누구나 접근 가능 — 가장 큰 노출 지점)
-- [ ] 로그에 토큰/비밀번호 평문 금지
+- [x] `JWT_SECRET`은 `.env`로만 주입, 기본값 금지 (없으면 부팅 실패 → 실수 방지)
+- [x] `UserRead` 스키마에 `password_hash` 포함 금지
+- [x] 영상 스트리밍 엔드포인트도 인증 + 소유자 검증 (현재 누구나 접근 가능 — 가장 큰 노출 지점)
+- [x] 로그에 토큰/비밀번호 평문 금지
 
 > 시연용이라 **HTTPS 강제, 비번 강도, rate limit, 토큰 회전 등은 의도적으로 제외**. 발표 시 "운영 시 추가할 항목"으로 언급만 해도 충분.
 
@@ -215,6 +217,24 @@ if FRONTEND_DIST.exists():
 - 시연 직전에 ngrok이 재시작되면 위 절차를 5분 안에 끝내야 함. 발표 직전 스트레스 요인.
 
 **권고**: 옵션 A. 옵션 B의 장점(Netlify CDN, 빌드 자동화)이 시연용에선 의미 없음.
+
+### 7.1.1 ⚠️ Netlify 사이트는 시연에 쓰지 않는다
+
+만약 과거 Netlify에 배포된 `aispeechcoach.netlify.app`이 살아있다면, 거기서 ngrok 백엔드를 cross-origin으로 호출할 때 **ngrok 무료 플랜의 보안 경고 페이지(ERR_NGROK_6024)에 막힘**.
+
+증상: 브라우저 콘솔에 `CORS policy: No 'Access-Control-Allow-Origin' header` 에러 — **실제로는 백엔드 CORS는 정상**이고 ngrok 경고 HTML이 응답을 가로채서 헤더 없는 응답이 나가는 것.
+
+**해결**: `netlify.toml`에 리다이렉트 추가 → Netlify로 들어와도 ngrok URL로 즉시 navigation. 이후 same-origin이라 CORS 자체 없음.
+
+```toml
+[[redirects]]
+  from = "/*"
+  to = "https://entail-imagines-blah.ngrok-free.dev/:splat"
+  status = 302
+  force = true
+```
+
+> 이 변경이 적용되려면 **git push 필요** (Netlify가 자동 재배포). push 못 하면 시연 직전 Netlify UI에서 사이트 "Stop auto publishing" 또는 "Delete site"로 비활성화.
 
 ### 7.2 ngrok 도메인 — **이미 고정 도메인 사용 중**
 

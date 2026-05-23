@@ -3,8 +3,11 @@
   command = "npm run build"
   publish = "dist"
 
-# SPA 라우팅 fallback — /onboarding, /result/xxx 새로고침 시 404 방지
+# 시연 환경 = Mac mini 통합 서빙 (ROADMAP 7.1 옵션 A).
+# Netlify를 시연 경로로 쓰지 않고, 들어온 모든 트래픽을 ngrok URL로 즉시 리다이렉트.
+# 이렇게 하면 사용자 브라우저는 ngrok 도메인에서만 동작 → same-origin → CORS 없음.
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
+  to = "https://entail-imagines-blah.ngrok-free.dev/:splat"
+  status = 302
+  force = true

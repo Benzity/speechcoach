@@ -57,7 +57,7 @@ export default function StartPage() {
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
               <Check>
-                로그인 <span className="font-semibold text-blue-700">불필요</span>
+                면접 기록 <span className="font-semibold text-blue-700">누적 관리</span>
               </Check>
               <Check>
                 한국어 <span className="font-bold text-blue-700">100%</span>

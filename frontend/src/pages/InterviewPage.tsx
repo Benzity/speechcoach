@@ -24,18 +24,29 @@ export default function InterviewPage() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [displayed, setDisplayed] = useState('')
+  const [elapsed, setElapsed] = useState(0)
 
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const speakAbortRef = useRef<AbortController | null>(null)
+  const handlingNextRef = useRef(false)
+  const autoStopFiredRef = useRef(false)
+
+  const TIME_LIMIT = 60
+  const WARN_AT = 10
+  const CRITICAL_AT = 5
 
   const ELEVEN_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string | undefined
   const ELEVEN_VOICE = '21m00Tcm4TlvDq8ikWAM' // Rachel — 무료 플랜 기본 여성 목소리
 
   async function speakWithElevenLabs(text: string) {
     if (!ELEVEN_KEY) return false
+    speakAbortRef.current?.abort()
+    const controller = new AbortController()
+    speakAbortRef.current = controller
     try {
       const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
         method: 'POST',
@@ -45,9 +56,11 @@ export default function InterviewPage() {
           model_id: 'eleven_multilingual_v2',
           voice_settings: { stability: 0.5, similarity_boost: 0.75 },
         }),
+        signal: controller.signal,
       })
-      if (!res.ok) return false
+      if (!res.ok || controller.signal.aborted) return false
       const blob = await res.blob()
+      if (controller.signal.aborted) return false
       const url = URL.createObjectURL(blob)
       audioRef.current?.pause()
       const audio = new Audio(url)
@@ -88,6 +101,8 @@ export default function InterviewPage() {
   }
 
   function stopSpeaking() {
+    speakAbortRef.current?.abort()
+    speakAbortRef.current = null
     audioRef.current?.pause()
     audioRef.current = null
     window.speechSynthesis?.cancel()
@@ -111,7 +126,6 @@ export default function InterviewPage() {
           return
         }
         streamRef.current = stream
-        if (videoRef.current) videoRef.current.srcObject = stream
         setPermission('granted')
       })
       .catch((err: Error) => {
@@ -131,6 +145,14 @@ export default function InterviewPage() {
       streamRef.current?.getTracks().forEach((t) => t.stop())
     }
   }, [])
+
+  // 비디오 엘리먼트가 마운트된 뒤 stream 연결
+  useEffect(() => {
+    if (permission !== 'granted' || demoMode) return
+    if (videoRef.current && streamRef.current && videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+    }
+  }, [permission, demoMode])
 
   // TTS + typewriter — 새 질문이 표시될 때마다 면접관이 말함
   useEffect(() => {
@@ -213,6 +235,28 @@ export default function InterviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown])
 
+  // 녹화 시간 1초 단위 카운트
+  useEffect(() => {
+    if (!isRecording) {
+      setElapsed(0)
+      autoStopFiredRef.current = false
+      return
+    }
+    const id = window.setInterval(() => {
+      setElapsed((e) => e + 1)
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [isRecording])
+
+  // 60초 도달 시 자동 종료
+  useEffect(() => {
+    if (isRecording && elapsed >= TIME_LIMIT && !autoStopFiredRef.current) {
+      autoStopFiredRef.current = true
+      handleNext()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elapsed, isRecording])
+
   const stopRecording = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       if (demoMode || !recorderRef.current) {
@@ -224,7 +268,9 @@ export default function InterviewPage() {
         resolve(null)
         return
       }
+      const timeout = window.setTimeout(() => resolve(null), 5000)
       recorder.onstop = () => {
+        window.clearTimeout(timeout)
         const blob = new Blob(chunksRef.current, { type: 'video/webm' })
         chunksRef.current = []
         resolve(blob)
@@ -261,17 +307,23 @@ export default function InterviewPage() {
   }
 
   const handleNext = async () => {
+    if (handlingNextRef.current) return
     if (!session || !isRecording) return
-    const justFinished = currentIndex
-    const blob = await stopRecording()
-    setIsRecording(false)
-    if (blob && blob.size > 0) {
-      scheduleUpload(justFinished, blob)
-    }
-    if (justFinished + 1 >= session.questions.length) {
-      navigate(`/processing/${sessionId}`)
-    } else {
-      setCurrentIndex(justFinished + 1)
+    handlingNextRef.current = true
+    try {
+      const justFinished = currentIndex
+      const blob = await stopRecording()
+      setIsRecording(false)
+      if (blob && blob.size > 0) {
+        scheduleUpload(justFinished, blob)
+      }
+      if (justFinished + 1 >= session.questions.length) {
+        navigate(`/processing/${sessionId}`)
+      } else {
+        setCurrentIndex(justFinished + 1)
+      }
+    } finally {
+      handlingNextRef.current = false
     }
   }
 
@@ -289,6 +341,9 @@ export default function InterviewPage() {
   const failedCount = uploads.filter((u) => u.status === 'failed').length
   const progressPct = ((currentIndex + (isRecording ? 0.5 : 0)) / total) * 100
   const isLast = currentIndex + 1 >= total
+  const remaining = Math.max(0, TIME_LIMIT - elapsed)
+  const isWarning = isRecording && remaining <= WARN_AT && remaining > CRITICAL_AT
+  const isCritical = isRecording && remaining <= CRITICAL_AT
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -306,6 +361,10 @@ export default function InterviewPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {isCritical && (
+        <div className="fixed inset-0 pointer-events-none z-30 ring-[6px] ring-inset ring-rose-500/50 animate-pulse" />
       )}
 
       <header className="sticky top-0 z-20 backdrop-blur-xl bg-slate-950/80 border-b border-slate-800/80">
@@ -486,7 +545,15 @@ export default function InterviewPage() {
 
           {/* 카메라 PIP + 컨트롤 */}
           <div className="md:col-span-2 flex flex-col gap-4">
-            <div className="relative aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-slate-800/80 flex-shrink-0">
+            <div
+              className={`relative aspect-video bg-black rounded-2xl overflow-hidden flex-shrink-0 transition-all ${
+                isCritical
+                  ? 'ring-4 ring-rose-500 shadow-2xl shadow-rose-500/50 animate-pulse'
+                  : isWarning
+                  ? 'ring-2 ring-rose-500/60'
+                  : 'ring-1 ring-slate-800/80'
+              }`}
+            >
               {demoMode ? (
                 <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex flex-col items-center justify-center text-slate-400">
                   <svg className="w-10 h-10 mb-2 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -524,9 +591,38 @@ export default function InterviewPage() {
             <div className="flex-1 bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-2xl p-5 flex flex-col">
               <p className="text-xs text-slate-400 leading-relaxed">
                 {!isRecording
-                  ? '면접관의 질문을 듣고 답변할 준비가 되면 시작하세요.'
+                  ? '면접관의 질문을 듣고 답변할 준비가 되면 시작하세요. (답변 시간 60초)'
+                  : isCritical
+                  ? '곧 자동 종료됩니다. 답변을 마무리하세요.'
                   : '답변이 끝나면 다음 버튼을 누르세요. 영상은 백그라운드로 업로드됩니다.'}
               </p>
+              {isRecording && (
+                <div
+                  className={`mt-3 flex items-center justify-between rounded-xl px-4 py-3 transition-all ${
+                    isCritical
+                      ? 'bg-rose-500/20 ring-2 ring-rose-500 animate-pulse'
+                      : isWarning
+                      ? 'bg-rose-500/10 ring-1 ring-rose-400/40'
+                      : 'bg-slate-800/50 ring-1 ring-slate-700/50'
+                  }`}
+                >
+                  <span
+                    className={`text-xs font-semibold tracking-wider ${
+                      isCritical || isWarning ? 'text-rose-300' : 'text-slate-400'
+                    }`}
+                  >
+                    남은 시간
+                  </span>
+                  <span
+                    className={`font-mono tabular-nums font-extrabold text-3xl ${
+                      isCritical ? 'text-rose-300' : isWarning ? 'text-rose-200' : 'text-white'
+                    }`}
+                  >
+                    {remaining}
+                    <span className="text-base font-bold opacity-60">s</span>
+                  </span>
+                </div>
+              )}
               <div className="flex-1" />
               {!isRecording ? (
                 <button

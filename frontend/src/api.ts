@@ -223,3 +223,10 @@ export async function getResult(sessionId: string): Promise<ResultResponse> {
 export function getVideoUrl(sessionId: string, qIndex: number): string {
   return `${API_BASE}/api/sessions/${sessionId}/answers/${qIndex}/video`
 }
+
+// <video src>는 Authorization 헤더를 못 보내므로, 인증된 fetch로 blob을 받아 URL.createObjectURL 사용.
+export async function fetchVideoBlob(sessionId: string, qIndex: number): Promise<Blob> {
+  const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/answers/${qIndex}/video`)
+  if (!res.ok) throw new Error(`영상 로드 실패 (${res.status})`)
+  return res.blob()
+}

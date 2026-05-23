@@ -16,8 +16,8 @@ import {
   YAxis,
 } from 'recharts'
 import {
+  fetchVideoBlob,
   getResult,
-  getVideoUrl,
   type AnalysisRead,
   type FeedbackJson,
   type ResultResponse,
@@ -550,12 +550,7 @@ function QuestionDetails({
               )}
             </div>
             <p className="font-semibold text-slate-900 mb-4 leading-relaxed">{q.text}</p>
-            <video
-              controls
-              className="w-full rounded-xl bg-black aspect-video"
-              src={getVideoUrl(sessionId, i)}
-              preload="metadata"
-            />
+            <AuthVideo sessionId={sessionId} qIndex={i} />
             {a?.asr_transcript && (
               <details className="mt-4 text-sm bg-white border border-slate-100 rounded-xl">
                 <summary className="cursor-pointer px-4 py-3 font-medium text-slate-700 hover:text-slate-900 transition">
@@ -579,4 +574,44 @@ function Centered({ children }: { children: React.ReactNode }) {
       <div className="text-slate-600">{children}</div>
     </div>
   )
+}
+
+function AuthVideo({ sessionId, qIndex }: { sessionId: string; qIndex: number }) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let revokeUrl: string | null = null
+    let cancelled = false
+    fetchVideoBlob(sessionId, qIndex)
+      .then((blob) => {
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
+        revokeUrl = url
+        setSrc(url)
+      })
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message)
+      })
+    return () => {
+      cancelled = true
+      if (revokeUrl) URL.revokeObjectURL(revokeUrl)
+    }
+  }, [sessionId, qIndex])
+
+  if (error) {
+    return (
+      <div className="w-full rounded-xl bg-slate-100 aspect-video flex items-center justify-center text-sm text-slate-500">
+        영상을 불러올 수 없습니다 ({error})
+      </div>
+    )
+  }
+  if (!src) {
+    return (
+      <div className="w-full rounded-xl bg-slate-100 aspect-video flex items-center justify-center text-sm text-slate-400">
+        영상 불러오는 중…
+      </div>
+    )
+  }
+  return <video controls className="w-full rounded-xl bg-black aspect-video" src={src} preload="metadata" />
 }

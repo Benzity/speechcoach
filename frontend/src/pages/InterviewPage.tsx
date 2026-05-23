@@ -17,6 +17,7 @@ export default function InterviewPage() {
   const [permission, setPermission] = useState<PermissionState>('pending')
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [demoMode, setDemoMode] = useState(false)
+  const [stream, setStream] = useState<MediaStream | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
@@ -38,6 +39,7 @@ export default function InterviewPage() {
   const TIME_LIMIT = 60
   const WARN_AT = 10
   const CRITICAL_AT = 5
+  const MIN_ANSWER_SEC = 5  // 이 시간 미만이면 "너무 짧음" 경고
 
   const ELEVEN_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string | undefined
   const ELEVEN_VOICE = '21m00Tcm4TlvDq8ikWAM' // Rachel — 무료 플랜 기본 여성 목소리
@@ -90,43 +92,55 @@ export default function InterviewPage() {
       .catch((e: Error) => setLoadError(e.message))
   }, [sessionId])
 
+  // 카메라/마이크 권한 + stream 획득. stream은 state로 두어 video element 재마운트에도 안전.
   useEffect(() => {
     let cancelled = false
+    let acquired: MediaStream | null = null
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
-      .then((stream) => {
+      .then((s) => {
         if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop())
+          s.getTracks().forEach((t) => t.stop())
           return
         }
-        streamRef.current = stream
+        acquired = s
+        streamRef.current = s
+        setStream(s)
         setPermission('granted')
       })
       .catch((err: Error) => {
         if (err.name === 'NotAllowedError') {
           setPermission('denied')
           setPermissionError(
-            '카메라·마이크 권한이 거부되었습니다. 브라우저 주소창의 권한 아이콘에서 허용한 뒤 새로고침해주세요.',
+            '카메라·마이크 권한이 거부되었습니다. 브라우저 주소창의 권한 아이콘을 클릭해 허용한 뒤 새로고침해주세요.',
           )
           return
         }
-        console.warn('미디어 기기 접근 실패 — 데모 모드로 진행:', err.message)
+        if (err.name === 'NotFoundError') {
+          setPermission('denied')
+          setPermissionError('카메라/마이크 장치를 찾을 수 없습니다. 장치 연결을 확인해주세요.')
+          return
+        }
+        console.warn('미디어 기기 접근 실패 — 데모 모드로 진행:', err.name, err.message)
         setDemoMode(true)
         setPermission('granted')
       })
     return () => {
       cancelled = true
-      streamRef.current?.getTracks().forEach((t) => t.stop())
+      acquired?.getTracks().forEach((t) => t.stop())
     }
   }, [])
 
-  // 비디오 엘리먼트가 마운트된 뒤 stream 연결
+  // stream이 들어오면 video element에 연결 + 명시적 play 호출. dependency에 stream을 넣어 재연결 보장.
   useEffect(() => {
-    if (permission !== 'granted' || demoMode) return
-    if (videoRef.current && streamRef.current && videoRef.current.srcObject !== streamRef.current) {
-      videoRef.current.srcObject = streamRef.current
+    const el = videoRef.current
+    if (!el || !stream || demoMode) return
+    if (el.srcObject !== stream) {
+      el.srcObject = stream
     }
-  }, [permission, demoMode])
+    const p = el.play()
+    if (p && typeof p.catch === 'function') p.catch(() => {})
+  }, [stream, demoMode, permission])
 
   // TTS + typewriter — 새 질문이 표시될 때마다 면접관이 말함
   useEffect(() => {
@@ -226,7 +240,7 @@ export default function InterviewPage() {
   useEffect(() => {
     if (isRecording && elapsed >= TIME_LIMIT && !autoStopFiredRef.current) {
       autoStopFiredRef.current = true
-      handleNext()
+      handleNext({ auto: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, isRecording])
@@ -280,9 +294,16 @@ export default function InterviewPage() {
     void uploadWithRetry(qIndex, blob, 1)
   }
 
-  const handleNext = async () => {
+  const handleNext = async (opts: { auto?: boolean } = {}) => {
     if (handlingNextRef.current) return
     if (!session || !isRecording) return
+    // 사용자가 직접 누른 케이스에서, 답변 시간이 너무 짧으면 한 번 확인.
+    if (!opts.auto && elapsed < MIN_ANSWER_SEC) {
+      const ok = window.confirm(
+        `답변 시간이 ${elapsed}초입니다. 너무 짧으면 이 질문은 낮은 점수가 됩니다. 그래도 다음 질문으로 넘어갈까요?`,
+      )
+      if (!ok) return
+    }
     handlingNextRef.current = true
     try {
       const justFinished = currentIndex
@@ -291,6 +312,25 @@ export default function InterviewPage() {
       if (blob && blob.size > 0) {
         scheduleUpload(justFinished, blob)
       }
+      if (justFinished + 1 >= session.questions.length) {
+        navigate(`/processing/${sessionId}`)
+      } else {
+        setCurrentIndex(justFinished + 1)
+      }
+    } finally {
+      handlingNextRef.current = false
+    }
+  }
+
+  // 답변 시작 안 한 채로 질문 건너뛰기 — 빈 placeholder blob 업로드로 0점 처리.
+  const handleSkip = async () => {
+    if (handlingNextRef.current || !session || isRecording) return
+    window.alert('현재 답변이 입력되고 있지 않습니다. 이 질문은 0점 처리되며 다음으로 넘어갑니다.')
+    handlingNextRef.current = true
+    try {
+      const justFinished = currentIndex
+      const placeholder = new Blob([new Uint8Array(1024)], { type: 'video/webm' })
+      scheduleUpload(justFinished, placeholder)
       if (justFinished + 1 >= session.questions.length) {
         navigate(`/processing/${sessionId}`)
       } else {
@@ -599,17 +639,26 @@ export default function InterviewPage() {
               )}
               <div className="flex-1" />
               {!isRecording ? (
-                <button
-                  onClick={beginCountdown}
-                  disabled={countdown !== null}
-                  className="w-full group bg-gradient-to-r from-rose-500 to-red-600 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 transition-all flex items-center justify-center gap-2 mt-4"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition" />
-                  {countdown !== null ? '준비 중…' : '답변 시작'}
-                </button>
+                <>
+                  <button
+                    onClick={beginCountdown}
+                    disabled={countdown !== null}
+                    className="w-full group bg-gradient-to-r from-rose-500 to-red-600 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 transition-all flex items-center justify-center gap-2 mt-4"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition" />
+                    {countdown !== null ? '준비 중…' : '답변 시작'}
+                  </button>
+                  <button
+                    onClick={handleSkip}
+                    disabled={countdown !== null}
+                    className="mt-2 text-xs text-slate-400 hover:text-rose-400 disabled:opacity-40 disabled:cursor-not-allowed transition self-center underline-offset-4 hover:underline"
+                  >
+                    이 질문 건너뛰기 (0점 처리)
+                  </button>
+                </>
               ) : (
                 <button
-                  onClick={handleNext}
+                  onClick={() => handleNext()}
                   className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-xl hover:shadow-sky-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-4"
                 >
                   {isLast ? '면접 종료' : '다음 질문'}

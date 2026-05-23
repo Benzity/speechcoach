@@ -1,8 +1,56 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createSession } from '../api'
+import DeviceTest from './DeviceTest'
 
 type ResumeTab = 'text' | 'pdf'
+
+// 시연용 회사별 인재상 프리셋. 자유 텍스트는 항상 선택 가능.
+const COMPANY_PRESETS: { value: string; label: string; profile: string }[] = [
+  { value: '', label: '— 선택 안 함 / 직접 입력 —', profile: '' },
+  {
+    value: 'samsung',
+    label: '삼성전자',
+    profile:
+      '경계를 넘는 도전과 창의로 미래를 개척하는 인재. 함께 멀리 가는 협업, 끊임없는 학습으로 본질을 추구하고, 글로벌 무대에서 통하는 실행력과 책임감을 갖춘 사람.',
+  },
+  {
+    value: 'skhynix',
+    label: 'SK하이닉스',
+    profile:
+      '도전과 패기로 새로운 영역을 개척하고, 데이터·기술 기반의 빠른 의사결정과 실행을 추구. 사회적 가치(ESG)와 협업을 중시하며 자기주도적으로 성장하는 인재.',
+  },
+  {
+    value: 'lg',
+    label: 'LG전자',
+    profile:
+      '고객가치 창조와 인간존중. 정도 경영을 바탕으로 끈기 있게 본질에 집중하고, 협업과 신뢰로 변화의 시대를 함께 만들어가는 인재.',
+  },
+  {
+    value: 'naver',
+    label: '네이버',
+    profile:
+      '사용자 중심 사고와 기술에 대한 깊은 이해. 빠른 학습과 실험, 데이터 기반 의사결정을 통해 더 나은 인터넷 서비스를 만드는 인재. 자율과 책임의 문화에 기여할 수 있는 사람.',
+  },
+  {
+    value: 'kakao',
+    label: '카카오',
+    profile:
+      '사람을 향한 따뜻한 기술. 자율과 책임 위에서 본질 문제에 집중하고, 동료와 솔직하게 소통하며 실행하는 인재.',
+  },
+  {
+    value: 'coupang',
+    label: '쿠팡',
+    profile:
+      '와우(WOW) 경험에 집착하는 고객 obsession. 데이터·실험 기반 의사결정과 빠른 실행, 주인의식과 lean한 문제 해결로 임팩트를 내는 인재.',
+  },
+  {
+    value: 'toss',
+    label: '토스',
+    profile:
+      '고객 문제를 끝까지 파고드는 깊이 있는 사고와 빠른 실행. 자율적인 의사결정과 강한 주인의식, 솔직한 피드백 문화에 적응할 수 있는 인재.',
+  },
+]
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -10,10 +58,19 @@ export default function OnboardingPage() {
   const [resumeTab, setResumeTab] = useState<ResumeTab>('text')
   const [resumeText, setResumeText] = useState('')
   const [resumePdf, setResumePdf] = useState<File | null>(null)
+  const [companyPreset, setCompanyPreset] = useState('')
   const [idealProfile, setIdealProfile] = useState('')
   const [questionCount, setQuestionCount] = useState(5)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function handleCompanyChange(value: string) {
+    setCompanyPreset(value)
+    const preset = COMPANY_PRESETS.find((p) => p.value === value)
+    if (preset && preset.profile) {
+      setIdealProfile(preset.profile)
+    }
+  }
 
   const ready =
     jobTitle.trim().length > 0 &&
@@ -77,6 +134,8 @@ export default function OnboardingPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 space-y-8">
+          <DeviceTest />
+
           <Field label="관심 직무" required>
             <input
               type="text"
@@ -127,6 +186,23 @@ export default function OnboardingPage() {
                 )}
               </label>
             )}
+          </Field>
+
+          <Field label="목표 회사 (선택)">
+            <select
+              value={companyPreset}
+              onChange={(e) => handleCompanyChange(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-100 transition"
+            >
+              {COMPANY_PRESETS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1.5">
+              선택하면 아래 인재상 칸에 해당 회사 기준이 자동 입력됩니다. 자유롭게 수정 가능합니다.
+            </p>
           </Field>
 
           <Field label="인재상 (선택)">

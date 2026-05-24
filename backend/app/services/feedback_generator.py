@@ -35,8 +35,39 @@ SYSTEM_PROMPT = """당신은 시니어 면접관이자 커뮤니케이션 코치
 5. 응답은 반드시 명시된 JSON 스키마"""
 
 
+def _has_vision_data(questions: list[dict[str, Any]]) -> bool:
+    """질문 중 하나라도 비언어 메트릭에 실제 값이 들어있는지."""
+    for q in questions:
+        m = q.get("nonverbal_metrics")
+        if isinstance(m, dict) and m:
+            return True
+    return False
+
+
 def _build_user_prompt(payload: dict[str, Any]) -> str:
     ideal_section = f"\n[인재상/채용 기준]\n{payload['ideal_profile']}\n" if payload.get("ideal_profile") else ""
+    vision_available = _has_vision_data(payload.get("questions", []))
+
+    if vision_available:
+        nonverbal_rule = (
+            '"nonverbal": 0~100 정수,  // 시선/자세 등 비언어 분석 결과 기반\n'
+        )
+        nonverbal_feedback_rule = '"nonverbal_feedback": "시선/자세/표정/손 관련 종합 피드백",'
+        constraints = ""
+    else:
+        nonverbal_rule = '"nonverbal": null,  // 비디오 분석 데이터 없음 → 반드시 null\n'
+        nonverbal_feedback_rule = (
+            '"nonverbal_feedback": "비디오 분석을 수행하지 못해 비언어 표현(시선·자세·표정·손)은 평가하지 않습니다.",'
+        )
+        constraints = (
+            "\n[중요 제약]\n"
+            "- 이번 세션에는 비디오 분석 데이터가 없습니다.\n"
+            "- scores.nonverbal은 반드시 null로 출력하세요. 추측해서 점수를 매기지 마세요.\n"
+            "- nonverbal_feedback은 위 형식대로 분석 미수행을 명시하세요.\n"
+            "- critical_issues에 시선·자세·표정 같은 비언어 항목을 포함하지 마세요.\n"
+            "- scores.overall은 content와 verbal만으로 산정하세요.\n"
+        )
+
     return f"""아래 모의면접 데이터를 기반으로 종합 피드백 JSON을 생성해주세요.
 
 [직무]
@@ -47,7 +78,7 @@ def _build_user_prompt(payload: dict[str, Any]) -> str:
 
 [질문별 답변 데이터]
 {json.dumps(payload["questions"], ensure_ascii=False, indent=2)}
-
+{constraints}
 [응답 형식]
 - 다른 설명 없이 JSON 객체만 출력
 - 모든 텍스트는 한국어
@@ -56,14 +87,13 @@ def _build_user_prompt(payload: dict[str, Any]) -> str:
   "overall_summary": "한 단락(3~5문장)으로 전체 평가",
   "scores": {{
     "content": 0~100 정수,
-    "nonverbal": 0~100 정수,
-    "verbal": 0~100 정수,
+    {nonverbal_rule}    "verbal": 0~100 정수,
     "overall": 0~100 정수
   }},
   "critical_issues": [
     {{"title": "...", "description": "...", "priority": "high|medium|low"}}
   ],
-  "nonverbal_feedback": "시선/자세/표정/손 관련 종합 피드백",
+  {nonverbal_feedback_rule}
   "verbal_feedback": "어조/속도/필러워드/침묵 관련 종합 피드백",
   "practice_tips": ["실천 팁 3~5개"],
   "positive_points": ["잘하는 점 2~4개"]

@@ -92,7 +92,7 @@ export type ResultResponse = {
 
 export type FeedbackJson = {
   overall_summary: string
-  scores: { content: number; nonverbal: number; verbal: number; overall: number }
+  scores: { content: number; nonverbal: number | null; verbal: number; overall: number }
   critical_issues: { title: string; description: string; priority: 'high' | 'medium' | 'low' }[]
   nonverbal_feedback: string
   verbal_feedback: string

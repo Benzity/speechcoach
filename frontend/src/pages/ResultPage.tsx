@@ -211,32 +211,44 @@ function ScoreCard({
   primary = false,
 }: {
   label: string
-  value: number
+  value: number | null
   primary?: boolean
 }) {
+  const isNA = value === null || value === undefined
   return (
     <div
       className={`rounded-2xl p-5 backdrop-blur ${
         primary
           ? 'bg-white text-slate-900 shadow-2xl shadow-blue-900/20'
           : 'bg-white/10 text-white border border-white/15'
-      }`}
+      } ${isNA ? 'opacity-60' : ''}`}
     >
       <div className={`text-xs font-medium mb-1 ${primary ? 'text-slate-500' : 'text-sky-100/80'}`}>
         {label}
       </div>
       <div className="flex items-end gap-1">
-        <span className="text-4xl font-bold tabular-nums tracking-tighter">{value}</span>
-        <span className={`mb-1.5 text-sm ${primary ? 'text-slate-400' : 'text-sky-200/70'}`}>
-          /100
-        </span>
+        {isNA ? (
+          <>
+            <span className="text-4xl font-bold tabular-nums tracking-tighter">—</span>
+            <span className={`mb-1.5 text-xs ${primary ? 'text-slate-400' : 'text-sky-200/70'}`}>
+              분석 미실행
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-4xl font-bold tabular-nums tracking-tighter">{value}</span>
+            <span className={`mb-1.5 text-sm ${primary ? 'text-slate-400' : 'text-sky-200/70'}`}>
+              /100
+            </span>
+          </>
+        )}
       </div>
       <div className={`mt-3 h-1.5 rounded-full overflow-hidden ${primary ? 'bg-slate-100' : 'bg-white/10'}`}>
         <div
           className={`h-full rounded-full ${
             primary ? 'bg-gradient-to-r from-sky-400 to-blue-600' : 'bg-white/70'
           }`}
-          style={{ width: `${value}%` }}
+          style={{ width: `${isNA ? 0 : value}%` }}
         />
       </div>
     </div>

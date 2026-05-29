@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { deleteSession, listMySessions, type SessionListItem, type SessionStatus } from '../api'
-import Header from '../auth/Header'
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
   created: '진행 전',
@@ -49,7 +48,6 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50">
-      <Header />
       <main className="max-w-5xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>

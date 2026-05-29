@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { createSession } from '../api'
 import DeviceTest from './DeviceTest'
 
@@ -113,15 +113,6 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50">
-      <nav className="px-6 py-5 max-w-7xl mx-auto flex items-center justify-between">
-        <Link to="/" className="flex items-center">
-          <img src="/logo.png" alt="SpeechCoach AI" className="h-64 w-auto -ml-6" />
-        </Link>
-        <Link to="/" className="text-sm text-slate-500 hover:text-slate-900 transition">
-          ← 처음으로
-        </Link>
-      </nav>
-
       <main className="max-w-3xl mx-auto px-6 pt-8 pb-16">
         <div className="mb-8">
           <span className="text-xs font-semibold text-blue-600 tracking-wider">STEP 1 OF 1</span>

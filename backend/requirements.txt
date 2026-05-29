@@ -1,13 +1,15 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-pydantic
+pydantic[email]
 python-multipart
 python-dotenv
 anthropic
 pdfplumber
 faster-whisper
-mediapipe
+# 0.10.30+ 에서 legacy `mediapipe.solutions` API가 제거됨 — vision_worker.py가 의존.
+# Python 3.11~3.12에서 동작. Python 3.13/3.14는 wheel 부재.
+mediapipe>=0.10.18,<0.10.30
 librosa
 ffmpeg-python
 numpy

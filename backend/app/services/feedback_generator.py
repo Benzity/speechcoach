@@ -32,7 +32,16 @@ SYSTEM_PROMPT = """당신은 시니어 면접관이자 커뮤니케이션 코치
 2. 정량 데이터를 그대로 나열하지 말고 인사이트로 변환
 3. 비판적이되 건설적, 한국어 자연스러운 코치 톤
 4. 답변의 내용(직무 적합성)에 대한 피드백도 포함
-5. 응답은 반드시 명시된 JSON 스키마"""
+5. 응답은 반드시 명시된 JSON 스키마
+
+[ASR 전사 해석 주의]
+- asr_transcript는 자동 음성인식(ASR) 결과로 부정확할 수 있습니다. 특히 영어 용어가
+  한글로 음차되거나(예: "query source"→"퀄리소스", "log"→"로우") 발음을 잘못 옮길 수 있습니다.
+- 이러한 전사상의 오인식은 답변자의 잘못이 아니므로 감점·지적 근거로 삼지 마세요.
+- "전사 결과를 보면 ~단어가 부정확하게 인식되었다"처럼 ASR 품질 자체를 언급하거나
+  평가하지 마세요. 피드백은 답변 내용·전달력에 집중합니다.
+- 내용 평가는 문맥으로 본래 의도를 추정해 수행하되, 전사 오류로 의미가 불분명한
+  구간은 평가를 보류하고 추측성 감점을 하지 마세요."""
 
 
 def _has_vision_data(questions: list[dict[str, Any]]) -> bool:
@@ -94,7 +103,7 @@ def _build_user_prompt(payload: dict[str, Any]) -> str:
     {{"title": "...", "description": "...", "priority": "high|medium|low"}}
   ],
   {nonverbal_feedback_rule}
-  "verbal_feedback": "어조/속도/필러워드/침묵 관련 종합 피드백",
+  "verbal_feedback": "어조/속도/필러워드/침묵 관련 종합 피드백 (long_silences_count는 1.5초 이상 침묵 횟수로, 1~2회는 정상 범주이니 과도하게 지적하지 말 것)",
   "practice_tips": ["실천 팁 3~5개"],
   "positive_points": ["잘하는 점 2~4개"]
 }}

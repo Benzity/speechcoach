@@ -5,6 +5,10 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# "긴 침묵"으로 카운트할 최소 무음 구간 길이(초). 0.5초는 정상 발화 사이의
+# 호흡/쉼표 수준이라 과다 보고를 유발 → 면접에서 불편하게 느껴지는 정적 기준인 1.5초로 상향.
+LONG_SILENCE_SEC = 1.5
+
 
 def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> dict[str, Any]:
     """피치/속도/침묵/RMS 지표 산출."""
@@ -32,7 +36,7 @@ def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> di
     if len(intervals) >= 2:
         for i in range(len(intervals) - 1):
             gap = (intervals[i + 1][0] - intervals[i][1]) / sr
-            if gap >= 0.5:
+            if gap >= LONG_SILENCE_SEC:
                 long_silences += 1
 
     wpm = None

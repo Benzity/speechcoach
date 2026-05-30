@@ -79,7 +79,16 @@ def analyze(video_path: Path) -> dict[str, Any]:
         pose.close()
         hands.close()
 
-    total = sum(gaze_counts.values()) or 1
+    # 얼굴·자세·손이 모두 한 프레임도 감지되지 않았다면 실질 데이터 없음 → 빈 dict.
+    # (전부 0인 5키 dict를 반환하면 _has_vision_data가 "데이터 있음"으로 오판한다.)
+    face_frames = sum(gaze_counts.values())
+    if face_frames == 0 and not shoulder_diffs and not hand_positions:
+        logger.warning(
+            "비전 분석: 얼굴·자세·손 모두 미감지 (sampled=%d) — 비언어 데이터 없음 처리", sampled
+        )
+        return {}
+
+    total = face_frames or 1
     gaze_ratio = {k: v / total for k, v in gaze_counts.items()}
 
     posture = {

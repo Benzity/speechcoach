@@ -322,6 +322,24 @@ export default function InterviewPage() {
     }
   }
 
+  // 현재 질문 재녹화 — 진행 중 녹화를 폐기(업로드 안 함)하고 카운트다운부터 다시 시작.
+  const reRecord = () => {
+    if (!isRecording || handlingNextRef.current || countdown !== null) return
+    const ok = window.confirm('현재 답변을 지우고 이 질문을 처음부터 다시 녹화할까요?')
+    if (!ok) return
+    const recorder = recorderRef.current
+    if (recorder && recorder.state === 'recording') {
+      recorder.onstop = null // resolve 핸들러 제거 → 업로드되지 않음
+      recorder.stop()
+    }
+    recorderRef.current = null
+    chunksRef.current = []
+    setIsRecording(false)
+    setElapsed(0)
+    autoStopFiredRef.current = false
+    setCountdown(3) // beginCountdown은 isRecording 클로저 가드로 막히므로 직접 시작
+  }
+
   // 답변 시작 안 한 채로 질문 건너뛰기 — 빈 placeholder blob 업로드로 0점 처리.
   const handleSkip = async () => {
     if (handlingNextRef.current || !session || isRecording) return
@@ -657,15 +675,27 @@ export default function InterviewPage() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => handleNext()}
-                  className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-xl hover:shadow-sky-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-4"
-                >
-                  {isLast ? '면접 종료' : '다음 질문'}
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M13 5l7 7-7 7" />
-                  </svg>
-                </button>
+                <>
+                  <button
+                    onClick={() => handleNext()}
+                    className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-xl hover:shadow-sky-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-4"
+                  >
+                    {isLast ? '면접 종료' : '다음 질문'}
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M13 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={reRecord}
+                    className="mt-2 text-xs text-slate-400 hover:text-sky-300 transition self-center underline-offset-4 hover:underline flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 4v6h6" />
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    </svg>
+                    이 질문 다시 녹화
+                  </button>
+                </>
               )}
             </div>
           </div>

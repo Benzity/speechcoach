@@ -4,7 +4,7 @@ FastAPI + SQLite + 로컬 GPU 분석 워커. 상세 사양은 [`../SRS.MD`](../S
 
 ## 요구사항
 
-- **Python 3.11** (mediapipe/faster-whisper wheel 호환 — 3.13+ 불가)
+- **Python 3.12** (mediapipe `<0.10.30` / faster-whisper wheel 호환 — 3.13+ wheel 부재)
 - NVIDIA GPU + CUDA (RTX 5070 Ti, 16GB VRAM 권장)
 - ffmpeg (시스템 PATH)
 - Anthropic API Key
@@ -12,7 +12,7 @@ FastAPI + SQLite + 로컬 GPU 분석 워커. 상세 사양은 [`../SRS.MD`](../S
 ## 설치
 
 ```bash
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install --upgrade pip
 pip install -r requirements.txt

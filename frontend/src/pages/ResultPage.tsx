@@ -23,6 +23,7 @@ import {
   type ResultResponse,
   type SessionRead,
 } from '../api'
+import { useAuth } from '../auth/AuthContext'
 
 const GAZE_COLORS: Record<string, string> = {
   camera: '#10b981',
@@ -40,6 +41,7 @@ const PRIORITY_BADGE: Record<string, string> = {
 
 export default function ResultPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
+  const { user } = useAuth()
   const [data, setData] = useState<ResultResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -153,6 +155,26 @@ export default function ResultPage() {
             sessionId={sessionId!}
           />
         </Section>
+
+        <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100 rounded-3xl p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-bold text-slate-900 mb-1">
+              이 결과는 {user?.display_name ?? user?.email ?? '내 계정'} 계정에 저장되었습니다
+            </h2>
+            <p className="text-sm text-slate-600">
+              로그인 상태로 진행한 면접은 기록에 저장되어, 나중에 언제든 다시 열어볼 수 있어요.
+            </p>
+          </div>
+          <Link
+            to="/history"
+            className="flex-shrink-0 inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition shadow-sm"
+          >
+            내 면접 기록 보기
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
       </main>
     </div>
   )

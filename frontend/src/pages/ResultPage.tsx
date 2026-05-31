@@ -451,7 +451,7 @@ function NonverbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
 }
 
 function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
-  const wpmData = analyses.map((a, i) => {
+  const spmData = analyses.map((a, i) => {
     let v = 0
     if (a.verbal_metrics_json) {
       try {
@@ -461,7 +461,7 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
         /* skip */
       }
     }
-    return { q: `Q${i + 1}`, wpm: Math.round(v) }
+    return { q: `Q${i + 1}`, spm: Math.round(v) }
   })
 
   const pitchData = analyses.map((a, i) => {
@@ -495,7 +495,7 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
     .slice(0, 10)
     .map(([word, count]) => ({ word, count }))
 
-  if (pitchData.every((p) => p.pitch === 0) && wpmData.every((w) => w.wpm === 0)) {
+  if (pitchData.every((p) => p.pitch === 0) && spmData.every((w) => w.spm === 0)) {
     return (
       <p className="text-sm text-slate-500">
         반언어 분석 데이터가 없습니다. (분석 실패 또는 미실행)
@@ -505,14 +505,14 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
 
   return (
     <div className="grid md:grid-cols-3 gap-5">
-      <ChartCard title="질문별 발화 속도 (WPM)">
+      <ChartCard title="질문별 발화 속도 (SPM)">
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={wpmData}>
+          <BarChart data={spmData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis dataKey="q" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip />
-            <Bar dataKey="wpm" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="spm" fill="#3b82f6" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>

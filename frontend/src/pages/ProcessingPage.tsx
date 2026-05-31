@@ -80,7 +80,7 @@ export default function ProcessingPage() {
       <p className="text-slate-500 mt-2">
         {phase === 'analyzing'
           ? '시선·자세·어조·필러워드를 분석하고 있습니다.'
-          : 'AI가 종합 피드백을 작성하고 있습니다. (5~15초)'}
+          : 'AI가 종합 피드백을 작성하고 있습니다. (1분 이내)'}
       </p>
 
       {status && phase === 'analyzing' && (

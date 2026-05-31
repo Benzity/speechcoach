@@ -1,11 +1,56 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 
 export default function StartPage() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50">
       <nav className="px-6 py-2 max-w-7xl mx-auto flex items-center justify-between">
         <img src="/logo.png" alt="SpeechCoach AI" className="h-64 w-auto -ml-6" />
-        <span className="text-xs text-sky-500/80 font-medium">v2.0 · Demo</span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-sky-500/80 font-medium">v4.0 · Demo</span>
+          {user ? (
+            <>
+              <Link
+                to="/history"
+                className="text-sm font-medium text-slate-600 hover:text-blue-700"
+              >
+                내 면접 기록
+              </Link>
+              <span className="text-sm text-slate-500">
+                {user.display_name ?? user.email}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-sm font-medium text-slate-600 hover:text-rose-600 transition-colors"
+              >
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="text-sm font-medium text-slate-600 hover:text-blue-700"
+              >
+                로그인
+              </Link>
+              <Link
+                to="/signup"
+                className="text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-700 px-4 py-1.5 rounded-lg shadow-sm hover:shadow-md transition-all"
+              >
+                회원가입
+              </Link>
+            </>
+          )}
+        </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 pt-2 pb-24">

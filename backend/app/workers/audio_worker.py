@@ -1,5 +1,6 @@
 """librosa 기반 오디오 분석 (FR-4.8, FR-4.10, FR-4.11)."""
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,18 @@ logger = logging.getLogger(__name__)
 # "긴 침묵"으로 카운트할 최소 무음 구간 길이(초). 0.5초는 정상 발화 사이의
 # 호흡/쉼표 수준이라 과다 보고를 유발 → 면접에서 불편하게 느껴지는 정적 기준인 1.5초로 상향.
 LONG_SILENCE_SEC = 1.5
+
+_HANGUL_RE = re.compile(r"[가-힣]")
+_ENGLISH_WORD_RE = re.compile(r"[a-zA-Z]+")
+
+
+def _count_syllables(text: str) -> int:
+    """한국어 발화 속도용 음절 카운트.
+
+    - 한글 1글자 = 1음절 (Korean is mora-timed)
+    - 영어 1단어 ≈ 1음절(보수적 추정) — 실제 평균 1.4 음절이지만 시연 대부분 한국어
+    """
+    return len(_HANGUL_RE.findall(text)) + len(_ENGLISH_WORD_RE.findall(text))
 
 
 def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> dict[str, Any]:
@@ -39,10 +52,11 @@ def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> di
             if gap >= LONG_SILENCE_SEC:
                 long_silences += 1
 
-    wpm = None
+    spm = None
     if transcript and voiced_dur > 0:
-        words = transcript.split()
-        wpm = (len(words) / voiced_dur) * 60
+        syllables = _count_syllables(transcript)
+        if syllables > 0:
+            spm = (syllables / voiced_dur) * 60
 
     return {
         "pitch_mean": pitch_mean,
@@ -52,5 +66,5 @@ def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> di
         "voiced_duration_sec": voiced_dur,
         "silence_duration_sec": silence_dur,
         "long_silences_count": long_silences,
-        "wpm": wpm,
+        "spm": spm,
     }

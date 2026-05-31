@@ -456,7 +456,8 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
     if (a.verbal_metrics_json) {
       try {
         const m = JSON.parse(a.verbal_metrics_json)
-        v = m.wpm ?? 0
+        // 신규: spm (음절/분). 레거시: wpm (단어/분) — 의미 차이 있으나 차트 호환.
+        v = m.spm ?? m.wpm ?? 0
       } catch {
         /* skip */
       }

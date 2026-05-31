@@ -19,11 +19,13 @@ def test_mixed_korean_english():
 
 
 def test_punctuation_and_numbers_ignored():
-    # 숫자/문장부호는 카운트 안 됨
-    assert _count_syllables("3000명, 정말 대단합니다!") == 7  # 명정말대단합니다 = 7
+    # 숫자/문장부호는 카운트 안 됨 — 명(1) + 정말(2) + 대단합니다(5) = 8
+    assert _count_syllables("3000명, 정말 대단합니다!") == 8
 
 
 def test_realistic_answer():
     text = "어려운 과제였던 데이터 파이프라인 자동화에 직접 도전했습니다"
-    expected = 3 + 4 + 3 + 6 + 5 + 2 + 6  # = 29
+    # 어려운(3) + 과제였던(4) + 데이터(3) + 파이프라인(5) + 자동화에(4) + 직접(2) + 도전했습니다(6) = 27
+    expected = 3 + 4 + 3 + 5 + 4 + 2 + 6
     assert _count_syllables(text) == expected
+    assert expected == 27

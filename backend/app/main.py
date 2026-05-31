@@ -17,9 +17,42 @@ from app.db.database import Base, engine
 setup_logging()
 
 
+def _recover_stuck_analyses() -> None:
+    """재시작 시 인메모리 큐가 비므로, 중단된 분석(queued/processing)을 다시 큐에 넣는다."""
+    import logging
+
+    from app.db.database import SessionLocal
+    from app.db.models import Analysis
+    from app.workers.queue import submit_analysis
+
+    logger = logging.getLogger(__name__)
+    db = SessionLocal()
+    try:
+        stuck = (
+            db.query(Analysis)
+            .filter(Analysis.status.in_(("queued", "processing")))
+            .filter(Analysis.video_path.isnot(None))
+            .all()
+        )
+        for a in stuck:
+            a.status = "queued"
+        db.commit()
+        ids = [a.question_id for a in stuck]
+    except Exception:
+        logger.exception("중단된 분석 복구 실패")
+        ids = []
+    finally:
+        db.close()
+    for qid in ids:
+        submit_analysis(qid)
+    if ids:
+        logger.info("중단된 분석 %d건 재큐잉", len(ids))
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _recover_stuck_analyses()
     yield
 
 

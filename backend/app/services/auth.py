@@ -11,13 +11,19 @@ class TokenError(Exception):
     pass
 
 
+def _bcrypt_bytes(plain: str) -> bytes:
+    # bcrypt는 72바이트 초과 입력에 ValueError를 던진다(한글은 24자만 넘어도 초과).
+    # 해싱/검증 양쪽에서 동일하게 72바이트로 잘라 일관성을 보장한다.
+    return plain.encode("utf-8")[:72]
+
+
 def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return bcrypt.hashpw(_bcrypt_bytes(plain), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        return bcrypt.checkpw(_bcrypt_bytes(plain), hashed.encode("utf-8"))
     except ValueError:
         return False
 

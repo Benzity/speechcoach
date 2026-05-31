@@ -22,14 +22,22 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+async function authedFetch(
+  url: string,
+  init: RequestInit = {},
+  redirectOn401 = true,
+): Promise<Response> {
   const headers = { ...EXTRA_HEADERS, ...authHeaders(), ...(init.headers ?? {}) }
   const res = await fetch(url, { ...init, headers })
   if (res.status === 401) {
     clearToken()
-    const path = window.location.pathname
-    if (path !== '/login' && path !== '/signup') {
-      window.location.href = '/login'
+    // redirectOn401=false: 초기 인증 확인(apiMe) 등은 공개 페이지에서 만료 토큰이어도
+    // /login으로 튕기지 않는다. 비로그인 상태로 처리만 한다.
+    if (redirectOn401) {
+      const path = window.location.pathname
+      if (path !== '/login' && path !== '/signup') {
+        window.location.href = '/login'
+      }
     }
   }
   return res
@@ -158,7 +166,7 @@ export async function apiLogin(email: string, password: string): Promise<TokenRe
 }
 
 export async function apiMe(): Promise<UserRead> {
-  const res = await authedFetch(`${API_BASE}/api/auth/me`)
+  const res = await authedFetch(`${API_BASE}/api/auth/me`, {}, false)
   return jsonOrThrow<UserRead>(res, '내 정보를 불러올 수 없습니다.')
 }
 

@@ -288,11 +288,14 @@ def trigger_feedback(
 
     try:
         feedback_json = generate_feedback(payload)
-    except FeedbackGenerationError as e:
-        logger.error("피드백 생성 실패: %s", e)
+    except Exception as e:
+        # FeedbackGenerationError 외(네트워크 타임아웃 등)에도 세션이 "analyzing"
+        # 좀비 상태로 남지 않도록 모두 failed로 전환한다.
+        logger.exception("피드백 생성 실패")
         session_row.status = "failed"
         db.commit()
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        code = 502 if isinstance(e, FeedbackGenerationError) else 500
+        raise HTTPException(status_code=code, detail=str(e)) from e
 
     feedback_row = FeedbackModel(
         session_id=session_id,

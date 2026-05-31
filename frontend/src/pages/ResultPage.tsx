@@ -61,9 +61,7 @@ export default function ResultPage() {
   }
   if (!data) return <Centered>불러오는 중…</Centered>
 
-  const feedback: FeedbackJson | null = data.feedback
-    ? (JSON.parse(data.feedback.llm_response_json) as FeedbackJson)
-    : null
+  const feedback: FeedbackJson | null = parseFeedback(data.feedback?.llm_response_json)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -97,7 +95,7 @@ export default function ResultPage() {
                           PRIORITY_BADGE[issue.priority] ?? PRIORITY_BADGE.low
                         }`}
                       >
-                        {issue.priority.toUpperCase()}
+                        {(issue.priority ?? 'low').toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1">
@@ -496,7 +494,19 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
     .slice(0, 10)
     .map(([word, count]) => ({ word, count }))
 
-  if (pitchData.every((p) => p.pitch === 0) && spmData.every((w) => w.spm === 0)) {
+  // null(측정 실패)을 0으로 강등한 차트값으로 "데이터 없음"을 판정하면 실제 측정값 0과
+  // 구분하지 못한다. 실제 verbal 지표가 하나라도 있었는지로 판정한다.
+  const hasVerbalData = analyses.some((a) => {
+    if (!a.verbal_metrics_json) return false
+    try {
+      const m = JSON.parse(a.verbal_metrics_json)
+      return (m.spm ?? m.wpm) != null || m.pitch_mean != null
+    } catch {
+      return false
+    }
+  })
+
+  if (!hasVerbalData) {
     return (
       <p className="text-sm text-slate-500">
         반언어 분석 데이터가 없습니다. (분석 실패 또는 미실행)
@@ -601,6 +611,17 @@ function QuestionDetails({
       })}
     </div>
   )
+}
+
+// LLM 원응답을 그대로 저장하므로 깨진 JSON일 수 있다. 파싱 실패 시 null →
+// FallbackBanner로 폴백(페이지 전체 크래시 방지).
+function parseFeedback(raw: string | null | undefined): FeedbackJson | null {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as FeedbackJson
+  } catch {
+    return null
+  }
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

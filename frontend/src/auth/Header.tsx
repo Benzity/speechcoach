@@ -17,7 +17,7 @@ export default function Header() {
           <span className="bg-gradient-to-r from-sky-500 to-blue-700 bg-clip-text text-transparent">
             SpeechCoach
           </span>
-          <span className="text-[10px] text-sky-500/80 font-medium">v4.0</span>
+          <span className="text-[10px] text-sky-500/80 font-medium">v5.0</span>
         </Link>
 
         {user ? (

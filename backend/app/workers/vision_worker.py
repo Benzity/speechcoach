@@ -9,6 +9,61 @@ logger = logging.getLogger(__name__)
 SAMPLE_FPS = 5  # NFR-1.5
 GAZE_LABELS = ("camera", "down", "up", "left", "right")
 
+# iris가 눈 중앙에서 이 비율 이상 벗어나면 시선 이탈로 판정 (발표 기준: 눈 폭의 5%).
+# 실제 영상에서 과탐 시 0.10~0.15로 상향 튜닝.
+GAZE_OFF_RATIO = 0.05
+# 이보다 짧은 이탈 구간은 "주요 감점 요인"에서 제외 (순간적 흔들림).
+MIN_GAZE_OFF_SEC = 0.6
+
+# MediaPipe FaceMesh refine_landmarks 인덱스
+_L_IRIS, _R_IRIS = 468, 473                   # 좌/우 홍채 중심
+_L_EYE_X, _R_EYE_X = (33, 133), (263, 362)    # 좌/우 눈의 좌우 코너
+_L_EYE_Y, _R_EYE_Y = (159, 145), (386, 374)   # 좌/우 눈의 위/아래 눈꺼풀
+
+
+def _eye_ratio(lm, iris_i: int, a_i: int, b_i: int, axis: str) -> float:
+    """눈 코너(a,b) 사이에서 홍채의 상대 위치(0~1). 정면이면 ~0.5."""
+    iris = getattr(lm.landmark[iris_i], axis)
+    a = getattr(lm.landmark[a_i], axis)
+    b = getattr(lm.landmark[b_i], axis)
+    lo, hi = (a, b) if a <= b else (b, a)
+    return (iris - lo) / (hi - lo) if hi > lo else 0.5
+
+
+def _gaze_direction(lm) -> str:
+    """양안 홍채 위치로 시선 방향 판정 (FR-08, iris 기반). camera/down/up/left/right."""
+    hx = (_eye_ratio(lm, _L_IRIS, *_L_EYE_X, "x") + _eye_ratio(lm, _R_IRIS, *_R_EYE_X, "x")) / 2
+    vy = (_eye_ratio(lm, _L_IRIS, *_L_EYE_Y, "y") + _eye_ratio(lm, _R_IRIS, *_R_EYE_Y, "y")) / 2
+    off_x, off_y = hx - 0.5, vy - 0.5
+    if abs(off_x) < GAZE_OFF_RATIO and abs(off_y) < GAZE_OFF_RATIO:
+        return "camera"
+    if abs(off_y) >= abs(off_x):
+        return "down" if off_y > 0 else "up"
+    return "right" if off_x > 0 else "left"
+
+
+def _segment_gaze_off(seq: list[tuple[float, str]]) -> list[dict[str, Any]]:
+    """시선 방향 시퀀스에서 연속 이탈 구간을 추출 (MIN_GAZE_OFF_SEC 이상만)."""
+    events: list[dict[str, Any]] = []
+    cur_dir: str | None = None
+    cur_start = cur_last = 0.0
+
+    def flush() -> None:
+        if cur_dir is not None and cur_last - cur_start >= MIN_GAZE_OFF_SEC:
+            events.append(
+                {"t": round(cur_start, 1), "dur": round(cur_last - cur_start, 1), "dir": cur_dir}
+            )
+
+    for t, d in seq:
+        off = d if d in ("down", "up", "left", "right") else None
+        if off is not None and off == cur_dir:
+            cur_last = t
+        else:
+            flush()
+            cur_dir, cur_start, cur_last = off, t, t
+    flush()
+    return events
+
 
 def analyze(video_path: Path) -> dict[str, Any]:
     """영상에서 시선/자세/손 떨림 지표 산출."""
@@ -27,6 +82,7 @@ def analyze(video_path: Path) -> dict[str, Any]:
     hands = mp.solutions.hands.Hands(max_num_hands=2)
 
     gaze_counts = dict.fromkeys(GAZE_LABELS, 0)
+    gaze_seq: list[tuple[float, str]] = []
     shoulder_diffs: list[float] = []
     spine_scores: list[float] = []
     hand_positions: list[tuple[float, float]] = []
@@ -47,18 +103,9 @@ def analyze(video_path: Path) -> dict[str, Any]:
 
             face_res = face_mesh.process(rgb)
             if face_res.multi_face_landmarks:
-                lm = face_res.multi_face_landmarks[0]
-                left_eye = lm.landmark[33]
-                right_eye = lm.landmark[263]
-                cx = (left_eye.x + right_eye.x) / 2
-                cy = (left_eye.y + right_eye.y) / 2
-                dx, dy = cx - 0.5, cy - 0.5
-                if abs(dx) < 0.05 and abs(dy) < 0.05:
-                    gaze_counts["camera"] += 1
-                elif abs(dx) > abs(dy):
-                    gaze_counts["right" if dx > 0 else "left"] += 1
-                else:
-                    gaze_counts["down" if dy > 0 else "up"] += 1
+                direction = _gaze_direction(face_res.multi_face_landmarks[0])
+                gaze_counts[direction] += 1
+                gaze_seq.append((frame_idx / fps, direction))
 
             pose_res = pose.process(rgb)
             if pose_res.pose_landmarks:
@@ -104,8 +151,11 @@ def analyze(video_path: Path) -> dict[str, Any]:
     else:
         tremor = 0.0
 
+    gaze_off_events = _segment_gaze_off(gaze_seq)
+
     return {
         "gaze_distribution": gaze_ratio,
+        "gaze_off_events": gaze_off_events,
         "posture": posture,
         "hand_tremor_index": tremor,
         "frames_sampled": sampled,

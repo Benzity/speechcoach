@@ -62,3 +62,17 @@ _STUTTER_PATTERN = re.compile(r"\b(\S+)(?:\s+\1\b){1,}", re.IGNORECASE)
 def count_stutters(transcript: str) -> int:
     """연속 반복 단어(버벅거림) 발생 횟수 (FR-4.12)."""
     return len(_STUTTER_PATTERN.findall(transcript))
+
+
+def extract_filler_events(segments: list[dict]) -> list[dict]:
+    """ASR 세그먼트별로 필러워드를 찾아 타임스탬프 이벤트로 반환 (FR-17).
+
+    세그먼트당 필러 종류별 1개(시작 시각)만 기록 — 같은 구간 중복 표기 방지.
+    """
+    events: list[dict] = []
+    for seg in segments:
+        counts = count_fillers(seg.get("text", ""))
+        start = round(float(seg.get("start", 0.0)), 1)
+        for word in counts:
+            events.append({"t": start, "label": word})
+    return events

@@ -563,6 +563,60 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
   )
 }
 
+const GAZE_DIR_LABEL: Record<string, string> = {
+  down: '시선이 아래로 향함',
+  up: '시선이 위로 향함',
+  left: '시선이 왼쪽으로 이탈',
+  right: '시선이 오른쪽으로 이탈',
+}
+
+function fmtTimestamp(t: number): string {
+  const m = Math.floor(t / 60)
+  const s = Math.round(t % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// 영상에서 몇 분 몇 초에 어떤 감점 요인이 있었는지 시간순으로 표기 (FR-17).
+function DeductionTimeline({ a }: { a?: AnalysisRead }) {
+  if (!a) return null
+  const items: { t: number; text: string }[] = []
+  try {
+    if (a.verbal_metrics_json) {
+      const v = JSON.parse(a.verbal_metrics_json)
+      for (const e of (v.filler_events ?? []) as { t: number; label: string }[])
+        items.push({ t: e.t, text: `필러워드 "${e.label}"` })
+      for (const e of (v.silence_events ?? []) as { t: number; dur: number }[])
+        items.push({ t: e.t, text: `긴 침묵 (${e.dur}초)` })
+    }
+    if (a.nonverbal_metrics_json) {
+      const n = JSON.parse(a.nonverbal_metrics_json)
+      for (const e of (n.gaze_off_events ?? []) as { t: number; dur: number; dir: string }[])
+        items.push({ t: e.t, text: `${GAZE_DIR_LABEL[e.dir] ?? '시선 이탈'} (${e.dur}초)` })
+    }
+  } catch {
+    return null
+  }
+  if (items.length === 0) return null
+  items.sort((x, y) => x.t - y.t)
+  return (
+    <div className="mt-4 bg-amber-50/60 border border-amber-100 rounded-xl p-4">
+      <div className="text-xs font-bold text-amber-700 mb-2.5 flex items-center gap-1.5">
+        <span>⏱️</span> 주요 감점 타임스탬프
+      </div>
+      <ul className="space-y-1.5">
+        {items.map((d, i) => (
+          <li key={i} className="flex items-center gap-2.5 text-sm text-slate-700">
+            <span className="font-mono text-xs font-semibold text-amber-700 tabular-nums bg-amber-100 px-1.5 py-0.5 rounded">
+              {fmtTimestamp(d.t)}
+            </span>
+            <span>{d.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function QuestionDetails({
   session,
   analyses,
@@ -596,6 +650,7 @@ function QuestionDetails({
             </div>
             <p className="font-semibold text-slate-900 mb-4 leading-relaxed">{q.text}</p>
             <AuthVideo sessionId={sessionId} qIndex={i} />
+            <DeductionTimeline a={a} />
             {a?.asr_transcript && (
               <details className="mt-4 text-sm bg-white border border-slate-100 rounded-xl">
                 <summary className="cursor-pointer px-4 py-3 font-medium text-slate-700 hover:text-slate-900 transition">

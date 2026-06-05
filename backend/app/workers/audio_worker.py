@@ -46,11 +46,15 @@ def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> di
     silence_dur = max(0.0, duration_sec - voiced_dur)
 
     long_silences = 0
+    silence_events: list[dict[str, float]] = []
     if len(intervals) >= 2:
         for i in range(len(intervals) - 1):
             gap = (intervals[i + 1][0] - intervals[i][1]) / sr
             if gap >= LONG_SILENCE_SEC:
                 long_silences += 1
+                silence_events.append(
+                    {"t": round(float(intervals[i][1]) / sr, 1), "dur": round(float(gap), 1)}
+                )
 
     spm = None
     if transcript and voiced_dur > 0:
@@ -66,5 +70,6 @@ def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> di
         "voiced_duration_sec": voiced_dur,
         "silence_duration_sec": silence_dur,
         "long_silences_count": long_silences,
+        "silence_events": silence_events,
         "spm": spm,
     }

@@ -4,12 +4,24 @@ import { getAnalysisStatus, triggerFeedback, type AnalysisStatus } from '../api'
 
 type Phase = 'analyzing' | 'feedback' | 'error'
 
+// 분석 대기 시간 동안 10초마다 순환 노출되는 취업 팁 (NFR-03 대기 만족도 개선)
+const WAITING_TIPS = [
+  '취업 팁! 각 기업별 인재상에 맞는 강점을 어필해보세요.',
+  '두괄식으로 결론부터 말하면 면접관이 답변을 더 쉽게 따라옵니다.',
+  '구체적인 수치와 경험(STAR 기법)으로 설득력을 높여보세요.',
+  '답변은 1분 내외로 핵심만 — 길어지면 오히려 전달력이 떨어집니다.',
+  '시선은 카메라 렌즈를 향하면 면접관과 눈을 맞추는 효과가 있어요.',
+  '필러워드(음·어)는 짧은 침묵으로 바꾸면 더 안정적으로 들립니다.',
+  '지원 직무의 핵심 키워드를 답변에 자연스럽게 녹여보세요.',
+]
+
 export default function ProcessingPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
   const [status, setStatus] = useState<AnalysisStatus | null>(null)
   const [phase, setPhase] = useState<Phase>('analyzing')
   const [error, setError] = useState<string | null>(null)
+  const [tipIndex, setTipIndex] = useState(0)
   const cancelRef = useRef(false)
 
   useEffect(() => {
@@ -46,6 +58,14 @@ export default function ProcessingPage() {
       cancelRef.current = true
     }
   }, [sessionId, navigate])
+
+  // 대기 중 10초마다 취업 팁 순환
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setTipIndex((i) => (i + 1) % WAITING_TIPS.length)
+    }, 10000)
+    return () => window.clearInterval(id)
+  }, [])
 
   if (phase === 'error') {
     return (
@@ -110,6 +130,16 @@ export default function ProcessingPage() {
           )}
         </div>
       )}
+
+      <div className="mt-6 w-full max-w-md bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-100 rounded-2xl px-6 py-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-base">💡</span>
+          <span className="text-xs font-bold tracking-wider text-blue-600">취업 팁</span>
+        </div>
+        <p key={tipIndex} className="text-sm text-slate-700 leading-relaxed">
+          {WAITING_TIPS[tipIndex]}
+        </p>
+      </div>
     </div>
   )
 }

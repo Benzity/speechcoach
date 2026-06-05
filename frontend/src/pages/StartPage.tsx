@@ -15,7 +15,7 @@ export default function StartPage() {
       <nav className="px-6 py-2 max-w-7xl mx-auto flex items-center justify-between">
         <img src="/logo.png" alt="SpeechCoach AI" className="h-64 w-auto -ml-6" />
         <div className="flex items-center gap-4">
-          <span className="text-xs text-sky-500/80 font-medium">v4.0 · Demo</span>
+          <span className="text-xs text-sky-500/80 font-medium">v5.0 · Demo</span>
           {user ? (
             <>
               <Link

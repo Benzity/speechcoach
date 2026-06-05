@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 from app.db.database import SessionLocal
 from app.db.models import Analysis as AnalysisModel
-from app.services.filler_detector import count_fillers, count_stutters
+from app.services.filler_detector import count_fillers, count_stutters, extract_filler_events
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,8 @@ def run_analysis_for_question(question_id: str) -> None:
         if transcript:
             verbal_metrics["fillers"] = count_fillers(transcript)
             verbal_metrics["stutter_count"] = count_stutters(transcript)
+        if asr_result and asr_result.get("segments"):
+            verbal_metrics["filler_events"] = extract_filler_events(asr_result["segments"])
 
         if asr_result:
             analysis.asr_transcript = asr_result["transcript"]

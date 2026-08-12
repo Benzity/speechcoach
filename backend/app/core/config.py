@@ -14,7 +14,7 @@ VIDEO_DIR = Path(os.getenv("VIDEO_DIR") or (BASE_DIR / "data" / "videos"))
 DB_PATH = Path(os.getenv("DB_PATH") or (BASE_DIR / "data" / "app.db"))
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "large-v3")
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cuda")

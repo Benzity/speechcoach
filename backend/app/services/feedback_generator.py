@@ -24,7 +24,7 @@ REQUIRED_KEYS = [
     "positive_points",
 ]
 
-SYSTEM_PROMPT = """당신은 시니어 면접관이자 커뮤니케이션 코치입니다.
+SYSTEM_PROMPT_KO = """당신은 시니어 면접관이자 커뮤니케이션 코치입니다.
 모의면접 분석 데이터를 받아 종합 피드백을 생성합니다.
 
 피드백 원칙:
@@ -43,6 +43,29 @@ SYSTEM_PROMPT = """당신은 시니어 면접관이자 커뮤니케이션 코치
 - 내용 평가는 문맥으로 본래 의도를 추정해 수행하되, 전사 오류로 의미가 불분명한
   구간은 평가를 보류하고 추측성 감점을 하지 마세요."""
 
+SYSTEM_PROMPT_EN = """You are a senior interviewer and communication coach.
+You receive mock-interview analysis data and produce comprehensive feedback.
+
+Feedback principles:
+1. Interpret nonverbal/paraverbal metrics holistically together with the ASR transcript
+2. Turn quantitative data into insights instead of listing raw numbers
+3. Critical but constructive, in a natural English coaching tone
+4. Also give feedback on answer content (fitness for the role)
+5. The response must strictly follow the specified JSON schema
+
+[Notes on interpreting the ASR transcript]
+- asr_transcript comes from automatic speech recognition and may contain errors:
+  misheard words, dropped words, or wrong technical terms.
+- Such transcription errors are not the candidate's fault — never use them as grounds
+  for criticism or lower scores.
+- Do not comment on or evaluate ASR quality itself (e.g. "the transcript shows word X
+  was recognized incorrectly"). Focus feedback on content and delivery.
+- Infer the intended meaning from context when evaluating content; where a passage is
+  unclear due to transcription errors, withhold judgment rather than guessing and
+  penalizing."""
+
+SYSTEM_PROMPTS = {"ko": SYSTEM_PROMPT_KO, "en": SYSTEM_PROMPT_EN}
+
 
 def _has_vision_data(questions: list[dict[str, Any]]) -> bool:
     """질문 중 하나라도 비언어 메트릭에 실제 값이 들어있는지."""
@@ -54,8 +77,71 @@ def _has_vision_data(questions: list[dict[str, Any]]) -> bool:
 
 
 def _build_user_prompt(payload: dict[str, Any]) -> str:
-    ideal_section = f"\n[인재상/채용 기준]\n{payload['ideal_profile']}\n" if payload.get("ideal_profile") else ""
+    language = payload.get("language", "ko")
     vision_available = _has_vision_data(payload.get("questions", []))
+
+    if language == "en":
+        ideal_section = (
+            f"\n[Ideal candidate profile / hiring criteria]\n{payload['ideal_profile']}\n"
+            if payload.get("ideal_profile")
+            else ""
+        )
+        if vision_available:
+            nonverbal_rule = (
+                '"nonverbal": integer 0-100,  // based on gaze/posture and other nonverbal analysis\n'
+            )
+            nonverbal_feedback_rule = (
+                '"nonverbal_feedback": "overall feedback on gaze/posture/expression/hands",'
+            )
+            constraints = ""
+        else:
+            nonverbal_rule = '"nonverbal": null,  // no video analysis data -> must be null\n'
+            nonverbal_feedback_rule = (
+                '"nonverbal_feedback": "Video analysis could not be performed, so nonverbal '
+                'delivery (gaze, posture, expression, hands) is not evaluated.",'
+            )
+            constraints = (
+                "\n[Important constraints]\n"
+                "- This session has no video analysis data.\n"
+                "- scores.nonverbal must be null. Do not guess a score.\n"
+                "- nonverbal_feedback must state that the analysis was not performed, as shown above.\n"
+                "- Do not include nonverbal items (gaze, posture, expression) in critical_issues.\n"
+                "- Compute scores.overall from content and verbal only.\n"
+            )
+
+        return f"""Generate a comprehensive feedback JSON based on the mock-interview data below.
+
+[Role]
+{payload["job_title"]}
+{ideal_section}
+[Resume summary]
+{payload["resume_text"][:1500]}
+
+[Per-question answer data]
+{json.dumps(payload["questions"], ensure_ascii=False, indent=2)}
+{constraints}
+[Response format]
+- Output only a JSON object, no other text
+- All text in English
+- Schema:
+{{
+  "overall_summary": "one paragraph (3-5 sentences) evaluating the whole interview",
+  "scores": {{
+    "content": integer 0-100,
+    {nonverbal_rule}    "verbal": integer 0-100,
+    "overall": integer 0-100
+  }},
+  "critical_issues": [
+    {{"title": "...", "description": "...", "priority": "high|medium|low"}}
+  ],
+  {nonverbal_feedback_rule}
+  "verbal_feedback": "overall feedback on tone/pace/filler words/silences (long_silences_count is the number of silences of 1.5s or longer; 1-2 occurrences are normal, do not over-criticize)",
+  "practice_tips": ["3-5 actionable practice tips"],
+  "positive_points": ["2-4 strengths"]
+}}
+"""
+
+    ideal_section = f"\n[인재상/채용 기준]\n{payload['ideal_profile']}\n" if payload.get("ideal_profile") else ""
 
     if vision_available:
         nonverbal_rule = (
@@ -120,14 +206,14 @@ def generate_feedback(payload: dict[str, Any]) -> dict[str, Any]:
     user_prompt = _build_user_prompt(payload)
 
     logger.info(
-        "종합 피드백 생성 요청 model=%s questions=%d",
-        CLAUDE_MODEL, len(payload["questions"]),
+        "종합 피드백 생성 요청 model=%s questions=%d lang=%s",
+        CLAUDE_MODEL, len(payload["questions"]), payload.get("language", "ko"),
     )
     try:
         response = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=4096,
-            system=SYSTEM_PROMPT,
+            system=SYSTEM_PROMPTS.get(payload.get("language", "ko"), SYSTEM_PROMPT_KO),
             messages=[{"role": "user", "content": user_prompt}],
         )
     except APIError as e:

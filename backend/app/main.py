@@ -49,9 +49,23 @@ def _recover_stuck_analyses() -> None:
         logger.info("중단된 분석 %d건 재큐잉", len(ids))
 
 
+def _migrate_add_columns() -> None:
+    """Alembic이 없어 create_all로 못 잡는 기존 테이블의 신규 컬럼을 수동 추가."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    cols = {c["name"] for c in inspector.get_columns("sessions")}
+    if "language" not in cols:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE sessions ADD COLUMN language VARCHAR NOT NULL DEFAULT 'ko'")
+            )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _migrate_add_columns()
     _recover_stuck_analyses()
     yield
 

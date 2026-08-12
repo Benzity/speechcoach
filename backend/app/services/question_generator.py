@@ -14,7 +14,7 @@ class QuestionGenerationError(Exception):
     """사용자에게 그대로 노출 가능한 한국어 메시지를 담는다."""
 
 
-SYSTEM_PROMPT = """당신은 시니어 면접관이자 채용 컨설턴트입니다.
+SYSTEM_PROMPT_KO = """당신은 시니어 면접관이자 채용 컨설턴트입니다.
 사용자의 관심 직무와 이력서를 바탕으로 깊이 있는 면접 질문을 생성합니다.
 
 질문 생성 원칙:
@@ -24,8 +24,52 @@ SYSTEM_PROMPT = """당신은 시니어 면접관이자 채용 컨설턴트입니
 4. 표면적 지식 질문(예: "OOP가 무엇인가요?") 지양
 5. 모든 질문은 한국어로, 자연스러운 면접관 톤"""
 
+SYSTEM_PROMPT_EN = """You are a senior interviewer and hiring consultant.
+Generate in-depth interview questions based on the candidate's target role and resume.
 
-def _build_user_prompt(job_title: str, resume_text: str, n: int, ideal_profile: str | None) -> str:
+Question guidelines:
+1. Include practical, hands-on questions that verify fitness for the role
+2. Include questions that revisit or dig deeper into specific experiences from the resume
+3. Include 1-2 questions on character, motivation, or collaboration
+4. Avoid surface-level knowledge questions (e.g. "What is OOP?")
+5. All questions in English, in a natural interviewer tone"""
+
+SYSTEM_PROMPTS = {"ko": SYSTEM_PROMPT_KO, "en": SYSTEM_PROMPT_EN}
+
+
+def _build_user_prompt(
+    job_title: str, resume_text: str, n: int, ideal_profile: str | None, language: str
+) -> str:
+    if language == "en":
+        ideal_section = (
+            f"\n[Ideal candidate profile / hiring criteria]\n{ideal_profile}\n"
+            if ideal_profile
+            else ""
+        )
+        return f"""Generate exactly {n} interview questions for the candidate below.
+
+[Target role]
+{job_title}
+{ideal_section}
+[Resume]
+{resume_text}
+
+[Response format]
+- Output only a JSON object, no other text.
+- Schema:
+{{
+  "questions": [
+    {{
+      "id": "q1",
+      "text": "the interview question",
+      "category": "one of technical | behavioral | motivation | experience | culture_fit",
+      "intent": "one line describing what this question evaluates"
+    }}
+  ]
+}}
+- ids in order q1, q2, ..., q{n}.
+- Exactly {n} questions.
+"""
     ideal_section = f"\n[인재상/채용 기준]\n{ideal_profile}\n" if ideal_profile else ""
     return f"""아래 후보자에 대해 면접 질문을 정확히 {n}개 생성해주세요.
 
@@ -53,21 +97,27 @@ def _build_user_prompt(job_title: str, resume_text: str, n: int, ideal_profile: 
 """
 
 
-def generate_questions(job_title: str, resume_text: str, n: int, ideal_profile: str | None = None) -> list[dict[str, Any]]:
+def generate_questions(
+    job_title: str,
+    resume_text: str,
+    n: int,
+    ideal_profile: str | None = None,
+    language: str = "ko",
+) -> list[dict[str, Any]]:
     if not ANTHROPIC_API_KEY:
         raise QuestionGenerationError(
             "서버에 ANTHROPIC_API_KEY가 설정되어 있지 않습니다. 관리자에게 문의해주세요."
         )
 
     client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    user_prompt = _build_user_prompt(job_title, resume_text, n, ideal_profile)
+    user_prompt = _build_user_prompt(job_title, resume_text, n, ideal_profile, language)
 
-    logger.info("Claude 질문 생성 요청 model=%s n=%d", CLAUDE_MODEL, n)
+    logger.info("Claude 질문 생성 요청 model=%s n=%d lang=%s", CLAUDE_MODEL, n, language)
     try:
         response = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=4096,
-            system=SYSTEM_PROMPT,
+            system=SYSTEM_PROMPTS.get(language, SYSTEM_PROMPT_KO),
             messages=[{"role": "user", "content": user_prompt}],
         )
     except APIError as e:

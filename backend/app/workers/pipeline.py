@@ -31,6 +31,9 @@ def run_analysis_for_question(question_id: str) -> None:
             _mark_failed(db, analysis)
             return
 
+        # 세션의 면접 언어 — ASR/오디오/필러 분석의 언어를 결정
+        language = analysis.question.session.language or "ko"
+
         analysis.status = "processing"
         analysis.started_at = datetime.utcnow()
         db.commit()
@@ -49,13 +52,13 @@ def run_analysis_for_question(question_id: str) -> None:
             _mark_failed(db, analysis)
             return
 
-        asr_result = _safe("ASR", _run_asr, audio_path)
+        asr_result = _safe("ASR", _run_asr, audio_path, language)
         transcript = asr_result["transcript"] if asr_result else None
         duration = asr_result["duration"] if asr_result else _video_duration(video_path)
 
         with ThreadPoolExecutor(max_workers=2) as ex:
             vfut = ex.submit(_safe, "Vision", _run_vision, video_path)
-            afut = ex.submit(_safe, "Audio", _run_audio, audio_path, transcript, duration)
+            afut = ex.submit(_safe, "Audio", _run_audio, audio_path, transcript, duration, language)
             vision_result = vfut.result()
             audio_result = afut.result()
 
@@ -63,10 +66,12 @@ def run_analysis_for_question(question_id: str) -> None:
         if audio_result:
             verbal_metrics.update(audio_result)
         if transcript:
-            verbal_metrics["fillers"] = count_fillers(transcript)
+            verbal_metrics["fillers"] = count_fillers(transcript, language)
             verbal_metrics["stutter_count"] = count_stutters(transcript)
         if asr_result and asr_result.get("segments"):
-            verbal_metrics["filler_events"] = extract_filler_events(asr_result["segments"])
+            verbal_metrics["filler_events"] = extract_filler_events(
+                asr_result["segments"], language
+            )
 
         if asr_result:
             analysis.asr_transcript = asr_result["transcript"]
@@ -138,9 +143,9 @@ def _video_duration(video_path: Path) -> float:
         return 0.0
 
 
-def _run_asr(audio_path: Path) -> dict[str, Any]:
+def _run_asr(audio_path: Path, language: str) -> dict[str, Any]:
     from app.workers.asr_worker import transcribe
-    return transcribe(audio_path)
+    return transcribe(audio_path, language)
 
 
 def _run_vision(video_path: Path) -> dict[str, Any]:
@@ -148,6 +153,8 @@ def _run_vision(video_path: Path) -> dict[str, Any]:
     return analyze(video_path)
 
 
-def _run_audio(audio_path: Path, transcript: str | None, duration: float) -> dict[str, Any]:
+def _run_audio(
+    audio_path: Path, transcript: str | None, duration: float, language: str
+) -> dict[str, Any]:
     from app.workers.audio_worker import analyze
-    return analyze(audio_path, transcript, duration)
+    return analyze(audio_path, transcript, duration, language)

@@ -1,0 +1,33 @@
+export const ko = {
+  statusCreated: '진행 전',
+  statusInProgress: '진행 중',
+  statusAnalyzing: '분석 중',
+  statusCompleted: '완료',
+  statusFailed: '실패',
+  title: '내 면접 기록',
+  subtitle: '지난 모의면접과 점수를 한눈에 확인하세요.',
+  newInterview: '+ 새 면접 시작',
+  loading: '불러오는 중...',
+  emptyMessage: '아직 진행한 면접이 없어요.',
+  startFirstInterview: '첫 면접 시작하기',
+  deleteConfirm: '정말 이 면접 기록을 삭제할까요? 영상도 함께 삭제됩니다.',
+  deleteTitle: '삭제',
+  questionCount: '질문 {count}개',
+}
+
+export const en: Record<keyof typeof ko, string> = {
+  statusCreated: 'Not started',
+  statusInProgress: 'In progress',
+  statusAnalyzing: 'Analyzing',
+  statusCompleted: 'Completed',
+  statusFailed: 'Failed',
+  title: 'My Interview History',
+  subtitle: 'Review your past mock interviews and scores at a glance.',
+  newInterview: '+ New Interview',
+  loading: 'Loading...',
+  emptyMessage: "You haven't done any interviews yet.",
+  startFirstInterview: 'Start your first interview',
+  deleteConfirm: 'Delete this interview record? The video will be deleted as well.',
+  deleteTitle: 'Delete',
+  questionCount: '{count} questions',
+}

@@ -62,3 +62,24 @@ def test_user_reported_example():
     assert "어" not in result, f"사용자 보고 예시에서 '어' 오탐: {result}"
     # '막상' 같은 단어도 없지만 '막힐'에서 '막'이 잡히면 안 됨
     assert "막" not in result
+
+
+def test_english_mode_skips_korean_dictionary():
+    """en 모드에서는 한국어 사전을 적용하지 않는다."""
+    text = "um so I think 어 그 basically it works"
+    result = count_fillers(text, language="en")
+    assert result.get("um") == 1
+    assert result.get("so") == 1
+    assert result.get("basically") == 1
+    assert "어" not in result
+    assert "그" not in result
+
+
+def test_ko_mode_default_behavior_unchanged():
+    """language 기본값(ko)은 기존처럼 한/영 사전 모두 적용."""
+    text = "어 so um 그게"
+    result = count_fillers(text)
+    assert result.get("어") == 1
+    assert result.get("그게") == 1
+    assert result.get("so") == 1
+    assert result.get("um") == 1

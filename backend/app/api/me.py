@@ -48,6 +48,7 @@ def list_my_sessions(
                 id=s.id,
                 job_title=s.job_title,
                 question_count=s.question_count,
+                language=s.language,
                 status=s.status,
                 created_at=s.created_at,
                 overall_score=score,

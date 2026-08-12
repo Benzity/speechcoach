@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useI18n } from '../i18n'
 
 type Status = 'idle' | 'requesting' | 'ready' | 'error'
 
 export default function DeviceTest() {
+  const { t } = useI18n()
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
   const [level, setLevel] = useState(0) // 0..1
@@ -59,9 +61,9 @@ export default function DeviceTest() {
     } catch (e) {
       const err = e as Error
       if (err.name === 'NotAllowedError') {
-        setError('권한이 거부되었습니다. 브라우저 주소창의 권한 아이콘에서 허용해주세요.')
+        setError(t('onboarding.devicePermissionDenied'))
       } else if (err.name === 'NotFoundError') {
-        setError('카메라/마이크 장치를 찾을 수 없습니다.')
+        setError(t('onboarding.deviceNotFound'))
       } else {
         setError(`${err.name}: ${err.message}`)
       }
@@ -78,9 +80,9 @@ export default function DeviceTest() {
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="font-semibold text-slate-900">카메라·마이크 테스트</p>
+          <p className="font-semibold text-slate-900">{t('onboarding.deviceTitle')}</p>
           <p className="text-xs text-slate-500 mt-0.5">
-            면접 시작 전, 장치가 정상 작동하는지 미리 확인하세요.
+            {t('onboarding.deviceSubtitle')}
           </p>
         </div>
         {status === 'ready' ? (
@@ -89,7 +91,7 @@ export default function DeviceTest() {
             onClick={stop}
             className="text-xs font-semibold text-slate-600 hover:text-rose-600 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-rose-300 transition"
           >
-            중지
+            {t('onboarding.deviceStop')}
           </button>
         ) : (
           <button
@@ -98,7 +100,7 @@ export default function DeviceTest() {
             disabled={status === 'requesting'}
             className="text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-700 px-4 py-2 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {status === 'requesting' ? '권한 요청 중…' : '테스트 시작'}
+            {status === 'requesting' ? t('onboarding.deviceRequesting') : t('onboarding.deviceStart')}
           </button>
         )}
       </div>
@@ -115,9 +117,9 @@ export default function DeviceTest() {
           />
           {status !== 'ready' && (
             <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 bg-slate-900/80">
-              {status === 'idle' && '테스트 시작을 눌러주세요'}
-              {status === 'requesting' && '권한 요청 중…'}
-              {status === 'error' && '카메라 없음'}
+              {status === 'idle' && t('onboarding.deviceIdleOverlay')}
+              {status === 'requesting' && t('onboarding.deviceRequesting')}
+              {status === 'error' && t('onboarding.deviceNoCamera')}
             </div>
           )}
           {status === 'ready' && (
@@ -130,7 +132,7 @@ export default function DeviceTest() {
 
         {/* 마이크 레벨 */}
         <div className="bg-white rounded-xl border border-slate-200 p-3 flex flex-col">
-          <p className="text-xs font-medium text-slate-600 mb-2">마이크 입력</p>
+          <p className="text-xs font-medium text-slate-600 mb-2">{t('onboarding.deviceMicLabel')}</p>
           <div className="flex-1 flex items-end gap-1">
             {Array.from({ length: 12 }).map((_, i) => {
               const threshold = (i + 1) / 12
@@ -151,9 +153,9 @@ export default function DeviceTest() {
           <p className="text-[10px] text-slate-400 mt-2 text-center">
             {status === 'ready'
               ? level > 0.05
-                ? '소리가 잘 들립니다'
-                : '말을 해보세요'
-              : '대기 중'}
+                ? t('onboarding.deviceMicGood')
+                : t('onboarding.deviceMicSpeak')
+              : t('onboarding.deviceMicWaiting')}
           </p>
         </div>
       </div>

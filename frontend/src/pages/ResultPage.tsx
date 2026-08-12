@@ -24,6 +24,7 @@ import {
   type SessionRead,
 } from '../api'
 import { useAuth } from '../auth/AuthContext'
+import { useI18n } from '../i18n'
 
 const GAZE_COLORS: Record<string, string> = {
   camera: '#10b981',
@@ -42,6 +43,7 @@ const PRIORITY_BADGE: Record<string, string> = {
 export default function ResultPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const { user } = useAuth()
+  const { t } = useI18n()
   const [data, setData] = useState<ResultResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,7 +61,7 @@ export default function ResultPage() {
       </Centered>
     )
   }
-  if (!data) return <Centered>불러오는 중…</Centered>
+  if (!data) return <Centered>{t('result.loading')}</Centered>
 
   const feedback: FeedbackJson | null = parseFeedback(data.feedback?.llm_response_json)
 
@@ -70,7 +72,7 @@ export default function ResultPage() {
           <img src="/logo.png" alt="SpeechCoach AI" className="h-64 w-auto -ml-6" />
         </Link>
         <Link to="/" className="text-sm text-slate-500 hover:text-slate-900 transition">
-          ← 처음으로
+          {t('result.backHome')}
         </Link>
       </nav>
 
@@ -79,13 +81,13 @@ export default function ResultPage() {
       <main className="max-w-6xl mx-auto px-6 pb-16 space-y-6">
         {feedback ? (
           <>
-            <Section title="종합 요약" badge="①">
+            <Section title={t('result.sectionSummary')} badge="①">
               <p className="text-slate-800 leading-loose whitespace-pre-wrap">
                 {feedback.overall_summary}
               </p>
             </Section>
 
-            <Section title="핵심 개선사항" badge="②">
+            <Section title={t('result.sectionCriticalIssues')} badge="②">
               <div className="space-y-3">
                 {feedback.critical_issues.map((issue, i) => (
                   <div key={i} className="flex gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
@@ -111,23 +113,23 @@ export default function ResultPage() {
           <FallbackBanner />
         )}
 
-        <Section title="비언어 지표" badge="④">
+        <Section title={t('result.sectionNonverbal')} badge="④">
           <NonverbalCharts analyses={data.analyses} />
         </Section>
 
-        <Section title="반언어 지표" badge="⑤">
+        <Section title={t('result.sectionVerbal')} badge="⑤">
           <VerbalCharts analyses={data.analyses} />
         </Section>
 
         {feedback && (
           <>
             <div className="grid md:grid-cols-2 gap-6">
-              <Section title="비언어 종합 피드백">
+              <Section title={t('result.sectionNonverbalFeedback')}>
                 <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">
                   {feedback.nonverbal_feedback}
                 </p>
               </Section>
-              <Section title="반언어 종합 피드백">
+              <Section title={t('result.sectionVerbalFeedback')}>
                 <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">
                   {feedback.verbal_feedback}
                 </p>
@@ -135,9 +137,9 @@ export default function ResultPage() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
-              <ListSection title="실천 팁" badge="⑥" items={feedback.practice_tips} accent="violet" />
+              <ListSection title={t('result.sectionPracticeTips')} badge="⑥" items={feedback.practice_tips} accent="violet" />
               <ListSection
-                title="잘하는 점"
+                title={t('result.sectionPositivePoints')}
                 badge="⑦"
                 items={feedback.positive_points}
                 accent="emerald"
@@ -146,7 +148,7 @@ export default function ResultPage() {
           </>
         )}
 
-        <Section title="질문별 답변" badge="③">
+        <Section title={t('result.sectionQuestionDetails')} badge="③">
           <QuestionDetails
             session={data.session}
             analyses={data.analyses}
@@ -157,17 +159,19 @@ export default function ResultPage() {
         <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100 rounded-3xl p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="font-bold text-slate-900 mb-1">
-              이 결과는 {user?.display_name ?? user?.email ?? '내 계정'} 계정에 저장되었습니다
+              {t('result.savedTitle', {
+                name: user?.display_name ?? user?.email ?? t('result.myAccount'),
+              })}
             </h2>
             <p className="text-sm text-slate-600">
-              로그인 상태로 진행한 면접은 기록에 저장되어, 나중에 언제든 다시 열어볼 수 있어요.
+              {t('result.savedBody')}
             </p>
           </div>
           <Link
             to="/history"
             className="flex-shrink-0 inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition shadow-sm"
           >
-            내 면접 기록 보기
+            {t('result.viewHistory')}
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M13 5l7 7-7 7" />
             </svg>
@@ -185,6 +189,7 @@ function ResultHero({
   session: SessionRead
   scores: FeedbackJson['scores'] | null
 }) {
+  const { t } = useI18n()
   return (
     <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-700 text-white relative overflow-hidden">
       <div className="absolute inset-0 opacity-20">
@@ -194,21 +199,24 @@ function ResultHero({
 
       <div className="relative max-w-6xl mx-auto px-6 py-14">
         <span className="inline-block text-xs font-semibold tracking-widest bg-white/15 backdrop-blur px-3 py-1 rounded-full mb-3">
-          면접 결과
+          {t('result.heroBadge')}
         </span>
         <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-2">
-          {session.job_title} 면접
+          {t('result.heroTitle', { jobTitle: session.job_title })}
         </h1>
         <p className="text-sky-100/90 text-lg">
-          질문 {session.questions.length}개 · 총 {session.questions.length * 1}분 내외 면접 분석 결과
+          {t('result.heroSubtitle', {
+            count: session.questions.length,
+            minutes: session.questions.length * 1,
+          })}
         </p>
 
         {scores ? (
           <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ScoreCard label="종합" value={scores.overall} primary />
-            <ScoreCard label="내용 적합성" value={scores.content} />
-            <ScoreCard label="비언어 표현" value={scores.nonverbal} />
-            <ScoreCard label="반언어 표현" value={scores.verbal} />
+            <ScoreCard label={t('result.scoreOverall')} value={scores.overall} primary />
+            <ScoreCard label={t('result.scoreContent')} value={scores.content} />
+            <ScoreCard label={t('result.scoreNonverbal')} value={scores.nonverbal} />
+            <ScoreCard label={t('result.scoreVerbal')} value={scores.verbal} />
           </div>
         ) : (
           <div className="mt-8 inline-flex items-center gap-2 bg-amber-400/20 border border-amber-200/30 text-amber-100 text-sm px-4 py-2 rounded-xl">
@@ -217,7 +225,7 @@ function ResultHero({
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            종합 피드백 생성 실패 — 차트와 질문별 답변은 그대로 확인하실 수 있습니다.
+            {t('result.scoresFailedBanner')}
           </div>
         )}
       </div>
@@ -234,6 +242,7 @@ function ScoreCard({
   value: number | null
   primary?: boolean
 }) {
+  const { t } = useI18n()
   const isNA = value === null || value === undefined
   return (
     <div
@@ -251,7 +260,7 @@ function ScoreCard({
           <>
             <span className="text-4xl font-bold tabular-nums tracking-tighter">—</span>
             <span className={`mb-1.5 text-xs ${primary ? 'text-slate-400' : 'text-sky-200/70'}`}>
-              분석 미실행
+              {t('result.scoreNA')}
             </span>
           </>
         ) : (
@@ -276,12 +285,12 @@ function ScoreCard({
 }
 
 function FallbackBanner() {
+  const { t } = useI18n()
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6">
-      <h2 className="font-bold text-amber-900 mb-1">종합 피드백을 가져오지 못했습니다</h2>
+      <h2 className="font-bold text-amber-900 mb-1">{t('result.fallbackTitle')}</h2>
       <p className="text-amber-800 text-sm">
-        Claude API 호출이 실패해 LLM 피드백 섹션은 표시되지 않습니다.
-        아래의 차트와 질문별 답변은 그대로 확인하실 수 있습니다.
+        {t('result.fallbackBody')}
       </p>
     </div>
   )
@@ -345,6 +354,7 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 }
 
 function NonverbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
+  const { t } = useI18n()
   const gazeAggr: Record<string, number> = {}
   let gazeCount = 0
   for (const a of analyses) {
@@ -396,14 +406,14 @@ function NonverbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
   if (gazeData.length === 0) {
     return (
       <p className="text-sm text-slate-500">
-        비언어 분석 데이터가 없습니다. (분석 실패 또는 미실행)
+        {t('result.noNonverbalData')}
       </p>
     )
   }
 
   return (
     <div className="grid md:grid-cols-3 gap-5">
-      <ChartCard title="시선 분포 (평균)">
+      <ChartCard title={t('result.chartGaze')}>
         <ResponsiveContainer width="100%" height={200}>
           <PieChart>
             <Pie data={gazeData} dataKey="value" nameKey="name" outerRadius={70} label>
@@ -416,7 +426,7 @@ function NonverbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
           </PieChart>
         </ResponsiveContainer>
       </ChartCard>
-      <ChartCard title="자세 정렬 점수 (0~100)">
+      <ChartCard title={t('result.chartPosture')}>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={postureData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -427,7 +437,7 @@ function NonverbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
-      <ChartCard title="손 떨림 지수 (0~10)">
+      <ChartCard title={t('result.chartTremor')}>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={tremorData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -449,6 +459,7 @@ function NonverbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
 }
 
 function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
+  const { t } = useI18n()
   const spmData = analyses.map((a, i) => {
     let v = 0
     if (a.verbal_metrics_json) {
@@ -509,14 +520,14 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
   if (!hasVerbalData) {
     return (
       <p className="text-sm text-slate-500">
-        반언어 분석 데이터가 없습니다. (분석 실패 또는 미실행)
+        {t('result.noVerbalData')}
       </p>
     )
   }
 
   return (
     <div className="grid md:grid-cols-3 gap-5">
-      <ChartCard title="질문별 발화 속도 (SPM)">
+      <ChartCard title={t('result.chartSpm')}>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={spmData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -527,7 +538,7 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
-      <ChartCard title="질문별 평균 피치 (Hz)">
+      <ChartCard title={t('result.chartPitch')}>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={pitchData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -544,9 +555,9 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
-      <ChartCard title="필러워드 빈도 (Top 10)">
+      <ChartCard title={t('result.chartFillers')}>
         {fillerData.length === 0 ? (
-          <p className="text-sm text-slate-500 pt-12 text-center">필러워드 없음 ✨</p>
+          <p className="text-sm text-slate-500 pt-12 text-center">{t('result.noFillers')}</p>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={fillerData}>
@@ -563,11 +574,12 @@ function VerbalCharts({ analyses }: { analyses: AnalysisRead[] }) {
   )
 }
 
-const GAZE_DIR_LABEL: Record<string, string> = {
-  down: '시선이 아래로 향함',
-  up: '시선이 위로 향함',
-  left: '시선이 왼쪽으로 이탈',
-  right: '시선이 오른쪽으로 이탈',
+// 방향코드 → 사전 키 (렌더 시점에 t()로 조회)
+const GAZE_DIR_KEY: Record<string, string> = {
+  down: 'result.gazeDown',
+  up: 'result.gazeUp',
+  left: 'result.gazeLeft',
+  right: 'result.gazeRight',
 }
 
 function fmtTimestamp(t: number): string {
@@ -578,20 +590,27 @@ function fmtTimestamp(t: number): string {
 
 // 영상에서 몇 분 몇 초에 어떤 감점 요인이 있었는지 시간순으로 표기 (FR-17).
 function DeductionTimeline({ a }: { a?: AnalysisRead }) {
+  const { t } = useI18n()
   if (!a) return null
   const items: { t: number; text: string }[] = []
   try {
     if (a.verbal_metrics_json) {
       const v = JSON.parse(a.verbal_metrics_json)
       for (const e of (v.filler_events ?? []) as { t: number; label: string }[])
-        items.push({ t: e.t, text: `필러워드 "${e.label}"` })
+        items.push({ t: e.t, text: t('result.eventFiller', { label: e.label }) })
       for (const e of (v.silence_events ?? []) as { t: number; dur: number }[])
-        items.push({ t: e.t, text: `긴 침묵 (${e.dur}초)` })
+        items.push({ t: e.t, text: t('result.eventSilence', { dur: e.dur }) })
     }
     if (a.nonverbal_metrics_json) {
       const n = JSON.parse(a.nonverbal_metrics_json)
       for (const e of (n.gaze_off_events ?? []) as { t: number; dur: number; dir: string }[])
-        items.push({ t: e.t, text: `${GAZE_DIR_LABEL[e.dir] ?? '시선 이탈'} (${e.dur}초)` })
+        items.push({
+          t: e.t,
+          text: t('result.eventGazeOff', {
+            label: t(GAZE_DIR_KEY[e.dir] ?? 'result.gazeOff'),
+            dur: e.dur,
+          }),
+        })
     }
   } catch {
     return null
@@ -601,7 +620,7 @@ function DeductionTimeline({ a }: { a?: AnalysisRead }) {
   return (
     <div className="mt-4 bg-amber-50/60 border border-amber-100 rounded-xl p-4">
       <div className="text-xs font-bold text-amber-700 mb-2.5 flex items-center gap-1.5">
-        <span>⏱️</span> 주요 감점 타임스탬프
+        <span>⏱️</span> {t('result.timelineTitle')}
       </div>
       <ul className="space-y-1.5">
         {items.map((d, i) => (
@@ -626,6 +645,7 @@ function QuestionDetails({
   analyses: AnalysisRead[]
   sessionId: string
 }) {
+  const { t } = useI18n()
   return (
     <div className="space-y-4">
       {session.questions.map((q, i) => {
@@ -644,7 +664,7 @@ function QuestionDetails({
               )}
               {a?.status === 'failed' && (
                 <span className="text-xs px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-100 font-medium">
-                  분석 실패
+                  {t('result.analysisFailed')}
                 </span>
               )}
             </div>
@@ -654,7 +674,7 @@ function QuestionDetails({
             {a?.asr_transcript && (
               <details className="mt-4 text-sm bg-white border border-slate-100 rounded-xl">
                 <summary className="cursor-pointer px-4 py-3 font-medium text-slate-700 hover:text-slate-900 transition">
-                  답변 전사 보기
+                  {t('result.viewTranscript')}
                 </summary>
                 <p className="px-4 pb-4 text-slate-700 whitespace-pre-wrap leading-relaxed border-t border-slate-100 pt-3">
                   {a.asr_transcript}
@@ -688,6 +708,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 function AuthVideo({ sessionId, qIndex }: { sessionId: string; qIndex: number }) {
+  const { t } = useI18n()
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -713,14 +734,14 @@ function AuthVideo({ sessionId, qIndex }: { sessionId: string; qIndex: number })
   if (error) {
     return (
       <div className="w-full rounded-xl bg-slate-100 aspect-video flex items-center justify-center text-sm text-slate-500">
-        영상을 불러올 수 없습니다 ({error})
+        {t('result.videoError', { error })}
       </div>
     )
   }
   if (!src) {
     return (
       <div className="w-full rounded-xl bg-slate-100 aspect-video flex items-center justify-center text-sm text-slate-400">
-        영상 불러오는 중…
+        {t('result.videoLoading')}
       </div>
     )
   }

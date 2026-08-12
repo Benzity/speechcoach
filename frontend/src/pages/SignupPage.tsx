@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useI18n } from '../i18n'
 
 export default function SignupPage() {
   const { signup } = useAuth()
+  const { t } = useI18n()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -16,7 +18,7 @@ export default function SignupPage() {
     e.preventDefault()
     setError(null)
     if (password.length < 4) {
-      setError('비밀번호는 4자 이상이어야 합니다.')
+      setError(t('auth.passwordTooShort'))
       return
     }
     setSubmitting(true)
@@ -41,15 +43,15 @@ export default function SignupPage() {
 
         <div className="bg-white rounded-3xl shadow-xl shadow-sky-100/40 p-8 border border-slate-100">
           <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">
-            회원가입
+            {t('auth.signupTitle')}
           </h1>
           <p className="text-sm text-slate-500 mb-6">
-            계정을 만들면 면접 기록이 자동으로 누적 관리됩니다.
+            {t('auth.signupSubtitle')}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field
-              label="이메일"
+              label={t('auth.email')}
               type="email"
               value={email}
               onChange={setEmail}
@@ -58,20 +60,20 @@ export default function SignupPage() {
               required
             />
             <Field
-              label="비밀번호"
+              label={t('auth.password')}
               type="password"
               value={password}
               onChange={setPassword}
-              placeholder="4자 이상"
+              placeholder={t('auth.passwordPlaceholder')}
               autoComplete="new-password"
               required
             />
             <Field
-              label="이름 (선택)"
+              label={t('auth.displayName')}
               type="text"
               value={displayName}
               onChange={setDisplayName}
-              placeholder="홍길동"
+              placeholder={t('auth.displayNamePlaceholder')}
             />
 
             {error && (
@@ -85,14 +87,14 @@ export default function SignupPage() {
               disabled={submitting}
               className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white font-semibold py-3 rounded-xl shadow-md shadow-sky-300/30 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {submitting ? '가입 중...' : '회원가입'}
+              {submitting ? t('auth.signupSubmitting') : t('auth.signupSubmit')}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm text-slate-500">
-            이미 계정이 있으신가요?{' '}
+            {t('auth.haveAccount')}{' '}
             <Link to="/login" className="font-semibold text-blue-700 hover:underline">
-              로그인
+              {t('auth.loginLink')}
             </Link>
           </div>
         </div>

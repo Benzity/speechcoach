@@ -1,8 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import LanguageToggle from '../components/LanguageToggle'
+import { useI18n } from '../i18n'
 
 export default function StartPage() {
   const { user, logout } = useAuth()
+  const { t } = useI18n()
   const navigate = useNavigate()
 
   function handleLogout() {
@@ -16,13 +19,14 @@ export default function StartPage() {
         <img src="/logo.png" alt="SpeechCoach AI" className="h-64 w-auto -ml-6" />
         <div className="flex items-center gap-4">
           <span className="text-xs text-sky-500/80 font-medium">v5.0 · Demo</span>
+          <LanguageToggle />
           {user ? (
             <>
               <Link
                 to="/history"
                 className="text-sm font-medium text-slate-600 hover:text-blue-700"
               >
-                내 면접 기록
+                {t('common.myHistory')}
               </Link>
               <span className="text-sm text-slate-500">
                 {user.display_name ?? user.email}
@@ -31,7 +35,7 @@ export default function StartPage() {
                 onClick={handleLogout}
                 className="text-sm font-medium text-slate-600 hover:text-rose-600 transition-colors"
               >
-                로그아웃
+                {t('common.logout')}
               </button>
             </>
           ) : (
@@ -40,13 +44,13 @@ export default function StartPage() {
                 to="/login"
                 className="text-sm font-medium text-slate-600 hover:text-blue-700"
               >
-                로그인
+                {t('common.login')}
               </Link>
               <Link
                 to="/signup"
                 className="text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-700 px-4 py-1.5 rounded-lg shadow-sm hover:shadow-md transition-all"
               >
-                회원가입
+                {t('common.signup')}
               </Link>
             </>
           )}
@@ -58,32 +62,32 @@ export default function StartPage() {
           <div>
             <span className="inline-flex items-center gap-1.5 bg-sky-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-              AI 모의면접 · 비언어/반언어 분석
+              {t('start.badge')}
             </span>
             <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 leading-[1.15] tracking-tight">
               <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-700 bg-clip-text text-transparent">
-                직무 맞춤 질문
+                {t('start.heroTitleEm')}
               </span>
-              으로
+              {t('start.heroTitleAfterEm')}
               <br />
-              완벽한 면접을 준비하세요
+              {t('start.heroTitleLine2')}
             </h1>
             <p className="mt-6 text-lg text-slate-600 leading-relaxed">
-              <span className="font-semibold text-blue-700">AI 면접관</span>이
-              이력서 기반 맞춤 질문을 만들고,
+              <span className="font-semibold text-blue-700">{t('start.heroDescEm1')}</span>
+              {t('start.heroDesc1')}
               <br />
-              답변 영상을 분석해{' '}
+              {t('start.heroDesc2')}{' '}
               <span className="font-semibold text-sky-700">
-                시선·자세·어조
+                {t('start.heroDescEm2')}
               </span>
-              까지 종합 피드백해드립니다.
+              {t('start.heroDesc3')}
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">
               <Link
                 to="/onboarding"
                 className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 to-blue-700 text-white px-8 py-4 rounded-2xl font-semibold shadow-lg shadow-sky-300/40 hover:shadow-xl hover:shadow-sky-300/60 hover:-translate-y-0.5 transition-all"
               >
-                면접 시작하기
+                {t('start.ctaStart')}
                 <svg
                   className="w-4 h-4 group-hover:translate-x-0.5 transition-transform"
                   viewBox="0 0 24 24"
@@ -97,18 +101,18 @@ export default function StartPage() {
                 </svg>
               </Link>
               <span className="text-sm text-slate-600 self-center">
-                약 <span className="font-bold text-blue-700">3분</span>이면 첫 질문 시작
+                {t('start.ctaTimeA')}<span className="font-bold text-blue-700">{t('start.ctaTimeEm')}</span>{t('start.ctaTimeB')}
               </span>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
               <Check>
-                면접 기록 <span className="font-semibold text-blue-700">누적 관리</span>
+                {t('start.check1a')} <span className="font-semibold text-blue-700">{t('start.check1em')}</span>
               </Check>
               <Check>
-                한국어 <span className="font-bold text-blue-700">100%</span>
+                {t('start.check2a')} <span className="font-bold text-blue-700">{t('start.check2em')}</span>
               </Check>
               <Check>
-                <span className="font-bold text-blue-700">Claude AI</span> 코칭
+                <span className="font-bold text-blue-700">Claude AI</span> {t('start.check3b')}
               </Check>
             </div>
           </div>
@@ -117,8 +121,8 @@ export default function StartPage() {
             <div className="absolute -inset-8 bg-gradient-to-br from-sky-300 via-sky-200 to-sky-300 rounded-[3rem] blur-3xl opacity-40" />
             <div className="relative bg-white rounded-3xl shadow-2xl shadow-sky-200/40 p-7 border border-slate-100">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-slate-400">종합 점수</span>
-                <span className="text-xs text-blue-600 font-medium">결과 미리보기</span>
+                <span className="text-xs font-medium text-slate-400">{t('start.previewOverall')}</span>
+                <span className="text-xs text-blue-600 font-medium">{t('start.previewLabel')}</span>
               </div>
               <div className="flex items-end gap-2 mb-7">
                 <span className="text-6xl font-bold bg-gradient-to-br from-sky-500 via-blue-600 to-blue-800 bg-clip-text text-transparent tracking-tighter">
@@ -127,17 +131,17 @@ export default function StartPage() {
                 <span className="text-slate-400 mb-3 text-lg">/100</span>
               </div>
               <div className="space-y-4">
-                <ScoreRow label="내용 적합성" value={88} from="from-sky-400" to="to-blue-600" />
-                <ScoreRow label="비언어 표현" value={75} from="from-sky-500" to="to-cyan-500" />
-                <ScoreRow label="반언어 표현" value={82} from="from-emerald-500" to="to-teal-500" />
+                <ScoreRow label={t('start.scoreContent')} value={88} from="from-sky-400" to="to-blue-600" />
+                <ScoreRow label={t('start.scoreNonverbal')} value={75} from="from-sky-500" to="to-cyan-500" />
+                <ScoreRow label={t('start.scoreParaverbal')} value={82} from="from-emerald-500" to="to-teal-500" />
               </div>
               <div className="mt-6 pt-5 border-t border-slate-100">
-                <div className="text-xs text-slate-400 mb-2.5 font-medium">핵심 개선사항</div>
+                <div className="text-xs text-slate-400 mb-2.5 font-medium">{t('start.previewImprovement')}</div>
                 <div className="flex items-center gap-2 text-sm">
                   <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-100">
                     HIGH
                   </span>
-                  <span className="text-slate-700 font-medium">필러워드 사용을 줄여보세요</span>
+                  <span className="text-slate-700 font-medium">{t('start.previewTip')}</span>
                 </div>
               </div>
             </div>
@@ -154,12 +158,12 @@ export default function StartPage() {
                 <circle cx="12" cy="12" r="2" />
               </svg>
             }
-            title="직무 맞춤 질문"
+            title={t('start.feature1Title')}
             desc={
               <>
-                이력서·직무를 분석해{' '}
+                {t('start.feature1a')}{' '}
                 <strong className="font-semibold text-blue-700">Claude AI</strong>
-                가 N개의 면접 질문을 사전 생성합니다.
+                {t('start.feature1b')}
               </>
             }
           />
@@ -171,15 +175,15 @@ export default function StartPage() {
                 <path d="M7 14l4-4 4 4 5-5" />
               </svg>
             }
-            title="비언어 분석"
+            title={t('start.feature2Title')}
             desc={
               <>
                 <strong className="font-semibold text-blue-700">MediaPipe</strong>
-                로{' '}
+                {t('start.feature2a')}{' '}
                 <strong className="font-semibold text-sky-700">
-                  시선·자세·표정·손 움직임
+                  {t('start.feature2em')}
                 </strong>
-                을 영상에서 자동 분석합니다.
+                {t('start.feature2b')}
               </>
             }
           />
@@ -192,14 +196,14 @@ export default function StartPage() {
                 <path d="M12 18v3" />
               </svg>
             }
-            title="반언어 분석"
+            title={t('start.feature3Title')}
             desc={
               <>
-                음성 인식 +{' '}
+                {t('start.feature3a')}{' '}
                 <strong className="font-semibold text-sky-700">
-                  피치·속도·필러워드·침묵
+                  {t('start.feature3em')}
                 </strong>
-                까지 정밀 측정해 코칭합니다.
+                {t('start.feature3b')}
               </>
             }
           />

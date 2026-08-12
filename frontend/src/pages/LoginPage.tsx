@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useI18n } from '../i18n'
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
   const redirectTo = (location.state as { from?: string } | null)?.from ?? '/'
@@ -38,15 +40,15 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-3xl shadow-xl shadow-sky-100/40 p-8 border border-slate-100">
           <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">
-            로그인
+            {t('auth.loginTitle')}
           </h1>
           <p className="text-sm text-slate-500 mb-6">
-            면접 기록을 누적 관리하려면 로그인이 필요합니다.
+            {t('auth.loginSubtitle')}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field
-              label="이메일"
+              label={t('auth.email')}
               type="email"
               value={email}
               onChange={setEmail}
@@ -55,7 +57,7 @@ export default function LoginPage() {
               required
             />
             <Field
-              label="비밀번호"
+              label={t('auth.password')}
               type="password"
               value={password}
               onChange={setPassword}
@@ -74,14 +76,14 @@ export default function LoginPage() {
               disabled={submitting}
               className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white font-semibold py-3 rounded-xl shadow-md shadow-sky-300/30 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {submitting ? '로그인 중...' : '로그인'}
+              {submitting ? t('auth.loginSubmitting') : t('auth.loginSubmit')}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm text-slate-500">
-            아직 계정이 없으신가요?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to="/signup" className="font-semibold text-blue-700 hover:underline">
-              회원가입
+              {t('auth.signupLink')}
             </Link>
           </div>
         </div>

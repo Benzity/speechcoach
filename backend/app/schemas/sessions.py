@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 SessionStatus = Literal["created", "in_progress", "analyzing", "completed", "failed"]
 AnalysisStatusName = Literal["queued", "processing", "completed", "failed"]
+InterviewLanguage = Literal["ko", "en"]
 
 
 class QuestionRead(BaseModel):
@@ -25,6 +26,7 @@ class SessionRead(BaseModel):
     job_title: str
     ideal_profile: str | None = None
     question_count: int
+    language: InterviewLanguage = "ko"
     status: SessionStatus
     questions: list[QuestionRead]
     created_at: datetime
@@ -79,6 +81,7 @@ class SessionListItem(BaseModel):
     id: str
     job_title: str
     question_count: int
+    language: InterviewLanguage = "ko"
     status: SessionStatus
     created_at: datetime
     overall_score: float | None = None

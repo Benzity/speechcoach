@@ -12,18 +12,27 @@ LONG_SILENCE_SEC = 1.5
 
 _HANGUL_RE = re.compile(r"[가-힣]")
 _ENGLISH_WORD_RE = re.compile(r"[a-zA-Z]+")
+_VOWEL_GROUP_RE = re.compile(r"[aeiouy]+", re.IGNORECASE)
 
 
-def _count_syllables(text: str) -> int:
-    """한국어 발화 속도용 음절 카운트.
+def _count_syllables(text: str, language: str = "ko") -> int:
+    """발화 속도용 음절 카운트.
 
-    - 한글 1글자 = 1음절 (Korean is mora-timed)
-    - 영어 1단어 ≈ 1음절(보수적 추정) — 실제 평균 1.4 음절이지만 시연 대부분 한국어
+    - ko: 한글 1글자 = 1음절 (Korean is mora-timed),
+          영어 1단어 ≈ 1음절(보수적 추정) — 실제 평균 1.4 음절이지만 시연 대부분 한국어
+    - en: 단어별 모음군(vowel group) 개수로 음절 추정 (최소 1음절/단어)
     """
+    if language == "en":
+        count = len(_HANGUL_RE.findall(text))
+        for word in _ENGLISH_WORD_RE.findall(text):
+            count += max(1, len(_VOWEL_GROUP_RE.findall(word)))
+        return count
     return len(_HANGUL_RE.findall(text)) + len(_ENGLISH_WORD_RE.findall(text))
 
 
-def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> dict[str, Any]:
+def analyze(
+    audio_path: Path, transcript: str | None, duration_sec: float, language: str = "ko"
+) -> dict[str, Any]:
     """피치/속도/침묵/RMS 지표 산출."""
     import librosa  # lazy import
     import numpy as np  # lazy import
@@ -58,7 +67,7 @@ def analyze(audio_path: Path, transcript: str | None, duration_sec: float) -> di
 
     spm = None
     if transcript and voiced_dur > 0:
-        syllables = _count_syllables(transcript)
+        syllables = _count_syllables(transcript, language)
         if syllables > 0:
             spm = (syllables / voiced_dur) * 60
 

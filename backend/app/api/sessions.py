@@ -53,6 +53,7 @@ def create_session(
     resume_pdf: UploadFile | None = File(None),
     ideal_profile: str | None = Form(None),
     question_count: int = Form(5),
+    language: str = Form("ko"),
     db: DbSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ) -> SessionModel:
@@ -60,6 +61,8 @@ def create_session(
         raise HTTPException(status_code=400, detail="질문 개수는 3~15 사이여야 합니다.")
     if not job_title.strip():
         raise HTTPException(status_code=400, detail="관심 직무를 입력해주세요.")
+    if language not in ("ko", "en"):
+        raise HTTPException(status_code=400, detail="지원하지 않는 언어입니다. (ko, en)")
 
     text = (resume_text or "").strip()
     if resume_pdf is not None and (resume_pdf.filename or "").strip():
@@ -78,7 +81,9 @@ def create_session(
         )
 
     try:
-        question_dicts = generate_questions(job_title.strip(), text, question_count, ideal_profile)
+        question_dicts = generate_questions(
+            job_title.strip(), text, question_count, ideal_profile, language=language
+        )
     except QuestionGenerationError as e:
         logger.error("질문 생성 실패: %s", e)
         raise HTTPException(status_code=502, detail=str(e)) from e
@@ -91,6 +96,7 @@ def create_session(
         resume_text=text,
         ideal_profile=ideal_profile.strip() if ideal_profile else None,
         question_count=question_count,
+        language=language,
         status="created",
     )
     db.add(session_row)
@@ -280,6 +286,7 @@ def trigger_feedback(
         "job_title": session_row.job_title,
         "resume_text": session_row.resume_text,
         "ideal_profile": session_row.ideal_profile,
+        "language": session_row.language,
         "questions": payload_questions,
     }
 

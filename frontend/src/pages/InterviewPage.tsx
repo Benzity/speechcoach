@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getSession, uploadAnswer, type SessionRead } from '../api'
+import { useI18n } from '../i18n'
 
 type UploadState = {
   qIndex: number
@@ -12,6 +13,7 @@ type PermissionState = 'pending' | 'granted' | 'denied'
 export default function InterviewPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [session, setSession] = useState<SessionRead | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [permission, setPermission] = useState<PermissionState>('pending')
@@ -55,15 +57,19 @@ export default function InterviewPage() {
     if (!('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'ko-KR'
-    utter.rate = 0.92
+    const lang = session?.language ?? 'ko'
+    utter.lang = lang === 'en' ? 'en-US' : 'ko-KR'
+    utter.rate = lang === 'en' ? 1.0 : 0.92
     utter.pitch = 1.0
     const voices = window.speechSynthesis.getVoices()
-    const priority = ['Google 한국의', 'Yuna', 'Google Korean']
+    const priority =
+      lang === 'en'
+        ? ['Google US English', 'Samantha', 'Google UK English Female']
+        : ['Google 한국의', 'Yuna', 'Google Korean']
     const best =
       priority.reduce<SpeechSynthesisVoice | null>((found, name) => {
         return found ?? voices.find((v) => v.name.includes(name)) ?? null
-      }, null) ?? voices.find((v) => v.lang.startsWith('ko')) ?? null
+      }, null) ?? voices.find((v) => v.lang.startsWith(lang)) ?? null
     if (best) utter.voice = best
     utter.onstart = () => setIsSpeaking(true)
     utter.onend = () => setIsSpeaking(false)
@@ -111,14 +117,12 @@ export default function InterviewPage() {
       .catch((err: Error) => {
         if (err.name === 'NotAllowedError') {
           setPermission('denied')
-          setPermissionError(
-            '카메라·마이크 권한이 거부되었습니다. 브라우저 주소창의 권한 아이콘을 클릭해 허용한 뒤 새로고침해주세요.',
-          )
+          setPermissionError(t('interview.permDenied'))
           return
         }
         if (err.name === 'NotFoundError') {
           setPermission('denied')
-          setPermissionError('카메라/마이크 장치를 찾을 수 없습니다. 장치 연결을 확인해주세요.')
+          setPermissionError(t('interview.permNotFound'))
           return
         }
         console.warn('미디어 기기 접근 실패 — 데모 모드로 진행:', err.name, err.message)
@@ -129,7 +133,7 @@ export default function InterviewPage() {
       cancelled = true
       acquired?.getTracks().forEach((t) => t.stop())
     }
-  }, [])
+  }, [t])
 
   // stream이 들어오면 video element에 연결 + 명시적 play 호출. dependency에 stream을 넣어 재연결 보장.
   useEffect(() => {
@@ -299,9 +303,7 @@ export default function InterviewPage() {
     if (!session || !isRecording) return
     // 사용자가 직접 누른 케이스에서, 답변 시간이 너무 짧으면 한 번 확인.
     if (!opts.auto && elapsed < MIN_ANSWER_SEC) {
-      const ok = window.confirm(
-        `답변 시간이 ${elapsed}초입니다. 너무 짧으면 이 질문은 낮은 점수가 됩니다. 그래도 다음 질문으로 넘어갈까요?`,
-      )
+      const ok = window.confirm(t('interview.tooShortConfirm', { seconds: elapsed }))
       if (!ok) return
     }
     handlingNextRef.current = true
@@ -325,7 +327,7 @@ export default function InterviewPage() {
   // 현재 질문 재녹화 — 진행 중 녹화를 폐기(업로드 안 함)하고 카운트다운부터 다시 시작.
   const reRecord = () => {
     if (!isRecording || handlingNextRef.current || countdown !== null) return
-    const ok = window.confirm('현재 답변을 지우고 이 질문을 처음부터 다시 녹화할까요?')
+    const ok = window.confirm(t('interview.reRecordConfirm'))
     if (!ok) return
     const recorder = recorderRef.current
     if (recorder && recorder.state === 'recording') {
@@ -343,7 +345,7 @@ export default function InterviewPage() {
   // 답변 시작 안 한 채로 질문 건너뛰기 — 빈 placeholder blob 업로드로 0점 처리.
   const handleSkip = async () => {
     if (handlingNextRef.current || !session || isRecording) return
-    window.alert('현재 답변이 입력되고 있지 않습니다. 이 질문은 0점 처리되며 다음으로 넘어갑니다.')
+    window.alert(t('interview.skipAlert'))
     handlingNextRef.current = true
     try {
       const justFinished = currentIndex
@@ -360,11 +362,11 @@ export default function InterviewPage() {
   }
 
   if (loadError) return <ScreenMessage message={loadError} variant="error" />
-  if (!session) return <ScreenMessage message="세션을 불러오는 중…" />
+  if (!session) return <ScreenMessage message={t('interview.loadingSession')} />
   if (permission === 'pending')
-    return <ScreenMessage message="카메라·마이크 권한 요청 중…" />
+    return <ScreenMessage message={t('interview.requestingPermission')} />
   if (permission === 'denied')
-    return <ScreenMessage message={permissionError ?? '권한이 거부되었습니다.'} variant="error" />
+    return <ScreenMessage message={permissionError ?? t('interview.permDeniedShort')} variant="error" />
 
   const currentQuestion = session.questions[currentIndex]
   const total = session.questions.length
@@ -383,13 +385,13 @@ export default function InterviewPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md">
           <div className="text-center">
             <p className="text-sky-300/80 text-sm font-medium tracking-widest mb-6">
-              잠시 후 녹화가 시작됩니다
+              {t('interview.countdownNotice')}
             </p>
             <div
               key={countdown}
               className="animate-countdown text-[14rem] leading-none font-extrabold tracking-tighter bg-gradient-to-br from-white via-sky-200 to-sky-300 bg-clip-text text-transparent"
             >
-              {countdown === 0 ? '시작!' : countdown}
+              {countdown === 0 ? t('interview.countdownGo') : countdown}
             </div>
           </div>
         </div>
@@ -406,7 +408,7 @@ export default function InterviewPage() {
               <img src="/logo.png" alt="SpeechCoach AI" className="h-44 w-auto -ml-4" />
             </Link>
             <div className="flex items-center gap-3 text-sm">
-              <span className="text-slate-400">{session.job_title} 면접</span>
+              <span className="text-slate-400">{t('interview.headerJob', { job: session.job_title })}</span>
               <span className="text-slate-600">·</span>
               <span className="text-white font-semibold tabular-nums">
                 {currentIndex + 1}
@@ -425,18 +427,20 @@ export default function InterviewPage() {
 
       {uploads.length > 0 && (
         <div className="fixed top-32 right-6 z-10 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl px-4 py-2.5 text-xs shadow-2xl">
-          <div className="font-semibold text-slate-300 mb-1">업로드 상태</div>
+          <div className="font-semibold text-slate-300 mb-1">{t('interview.uploadStatusTitle')}</div>
           <div className="flex items-center gap-3 tabular-nums">
             <span className="text-emerald-400">
-              완료 {doneCount}/{uploads.length}
+              {t('interview.uploadDone', { done: doneCount, total: uploads.length })}
             </span>
             {uploadingCount > 0 && (
               <span className="text-amber-300 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
-                진행 {uploadingCount}
+                {t('interview.uploadInProgress', { count: uploadingCount })}
               </span>
             )}
-            {failedCount > 0 && <span className="text-rose-400">실패 {failedCount}</span>}
+            {failedCount > 0 && (
+              <span className="text-rose-400">{t('interview.uploadFailed', { count: failedCount })}</span>
+            )}
           </div>
         </div>
       )}
@@ -466,7 +470,7 @@ export default function InterviewPage() {
                 }`}
               />
               <span className="text-[11px] font-bold tracking-[0.18em] text-sky-300">
-                AI 면접관 · COACH
+                {t('interview.interviewerLabel')}
               </span>
             </div>
 
@@ -475,7 +479,7 @@ export default function InterviewPage() {
                 onClick={speakAgain}
                 disabled={isMuted}
                 className="bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700 backdrop-blur rounded-full p-2 transition"
-                title="질문 다시 듣기"
+                title={t('interview.replayQuestion')}
               >
                 <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M1 4v6h6" />
@@ -485,7 +489,7 @@ export default function InterviewPage() {
               <button
                 onClick={toggleMute}
                 className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 backdrop-blur rounded-full p-2 transition"
-                title={isMuted ? '음소거 해제' : '음소거'}
+                title={isMuted ? t('interview.unmute') : t('interview.mute')}
               >
                 {isMuted ? (
                   <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -591,7 +595,7 @@ export default function InterviewPage() {
                   <svg className="w-10 h-10 mb-2 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 7l-7 5 7 5V7zM14 5H3a2 2 0 00-2 2v10a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2z" />
                   </svg>
-                  <p className="text-xs">카메라 미연결</p>
+                  <p className="text-xs">{t('interview.cameraNotConnected')}</p>
                 </div>
               ) : (
                 <video
@@ -615,7 +619,7 @@ export default function InterviewPage() {
                 </div>
               )}
               <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] text-slate-300/80">
-                <span>{demoMode ? '데모' : '나'}</span>
+                <span>{demoMode ? t('interview.demoLabel') : t('interview.meLabel')}</span>
                 <span className="tabular-nums">{Math.round(progressPct)}%</span>
               </div>
             </div>
@@ -623,10 +627,10 @@ export default function InterviewPage() {
             <div className="flex-1 bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-2xl p-5 flex flex-col">
               <p className="text-xs text-slate-400 leading-relaxed">
                 {!isRecording
-                  ? '면접관의 질문을 듣고 답변할 준비가 되면 시작하세요. (답변 시간 60초)'
+                  ? t('interview.instructionIdle', { seconds: TIME_LIMIT })
                   : isCritical
-                  ? '곧 자동 종료됩니다. 답변을 마무리하세요.'
-                  : '답변이 끝나면 다음 버튼을 누르세요. 영상은 백그라운드로 업로드됩니다.'}
+                  ? t('interview.instructionCritical')
+                  : t('interview.instructionRecording')}
               </p>
               {isRecording && (
                 <div
@@ -643,7 +647,7 @@ export default function InterviewPage() {
                       isCritical || isWarning ? 'text-rose-300' : 'text-slate-400'
                     }`}
                   >
-                    남은 시간
+                    {t('interview.timeRemaining')}
                   </span>
                   <span
                     className={`font-mono tabular-nums font-extrabold text-3xl ${
@@ -664,14 +668,14 @@ export default function InterviewPage() {
                     className="w-full group bg-gradient-to-r from-rose-500 to-red-600 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 transition-all flex items-center justify-center gap-2 mt-4"
                   >
                     <span className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition" />
-                    {countdown !== null ? '준비 중…' : '답변 시작'}
+                    {countdown !== null ? t('interview.preparing') : t('interview.startAnswer')}
                   </button>
                   <button
                     onClick={handleSkip}
                     disabled={countdown !== null}
                     className="mt-2 text-xs text-slate-400 hover:text-rose-400 disabled:opacity-40 disabled:cursor-not-allowed transition self-center underline-offset-4 hover:underline"
                   >
-                    이 질문 건너뛰기 (0점 처리)
+                    {t('interview.skipQuestion')}
                   </button>
                 </>
               ) : (
@@ -680,7 +684,7 @@ export default function InterviewPage() {
                     onClick={() => handleNext()}
                     className="w-full bg-gradient-to-r from-sky-500 to-blue-700 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-xl hover:shadow-sky-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-4"
                   >
-                    {isLast ? '면접 종료' : '다음 질문'}
+                    {isLast ? t('interview.finishInterview') : t('interview.nextQuestion')}
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14M13 5l7 7-7 7" />
                     </svg>
@@ -693,7 +697,7 @@ export default function InterviewPage() {
                       <path d="M1 4v6h6" />
                       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                     </svg>
-                    이 질문 다시 녹화
+                    {t('interview.reRecordButton')}
                   </button>
                 </>
               )}
@@ -712,6 +716,7 @@ function ScreenMessage({
   message: string
   variant?: 'info' | 'error'
 }) {
+  const { t } = useI18n()
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-sky-50">
       <div className="max-w-md text-center px-6">
@@ -723,7 +728,7 @@ function ScreenMessage({
             onClick={() => window.location.reload()}
             className="mt-6 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-slate-700 transition"
           >
-            새로고침
+            {t('interview.refresh')}
           </button>
         )}
       </div>

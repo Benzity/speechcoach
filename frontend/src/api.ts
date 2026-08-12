@@ -1,5 +1,7 @@
 // dev: VITE_API_BASE 없음 → '' → '/api/...' → Vite proxy로 127.0.0.1:8002
 // prod(옵션 A): 백엔드가 frontend도 같이 서빙 → 같은 origin → VITE_API_BASE 비워둠
+import { t } from './i18n'
+
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') ?? ''
 
 // ngrok 무료 플랜 브라우저 경고 페이지 우회
@@ -53,11 +55,13 @@ export type QuestionRead = {
 
 export type SessionStatus = 'created' | 'in_progress' | 'analyzing' | 'completed' | 'failed'
 export type AnalysisStatusName = 'queued' | 'processing' | 'completed' | 'failed'
+export type InterviewLanguage = 'ko' | 'en'
 
 export type SessionRead = {
   id: string
   job_title: string
   question_count: number
+  language: InterviewLanguage
   status: SessionStatus
   questions: QuestionRead[]
   created_at: string
@@ -122,6 +126,7 @@ export type SessionListItem = {
   id: string
   job_title: string
   question_count: number
+  language: InterviewLanguage
   status: SessionStatus
   created_at: string
   overall_score: number | null
@@ -133,6 +138,7 @@ type CreateSessionInput = {
   resumePdf?: File
   idealProfile?: string
   questionCount: number
+  language: InterviewLanguage
 }
 
 async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
@@ -153,7 +159,7 @@ export async function apiSignup(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, display_name: displayName }),
   })
-  return jsonOrThrow<TokenResponse>(res, '회원가입에 실패했습니다.')
+  return jsonOrThrow<TokenResponse>(res, t('errors.signupFailed'))
 }
 
 export async function apiLogin(email: string, password: string): Promise<TokenResponse> {
@@ -162,22 +168,22 @@ export async function apiLogin(email: string, password: string): Promise<TokenRe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
-  return jsonOrThrow<TokenResponse>(res, '로그인에 실패했습니다.')
+  return jsonOrThrow<TokenResponse>(res, t('errors.loginFailed'))
 }
 
 export async function apiMe(): Promise<UserRead> {
   const res = await authedFetch(`${API_BASE}/api/auth/me`, {}, false)
-  return jsonOrThrow<UserRead>(res, '내 정보를 불러올 수 없습니다.')
+  return jsonOrThrow<UserRead>(res, t('errors.meFailed'))
 }
 
 export async function listMySessions(): Promise<SessionListItem[]> {
   const res = await authedFetch(`${API_BASE}/api/me/sessions`)
-  return jsonOrThrow<SessionListItem[]>(res, '히스토리를 불러올 수 없습니다.')
+  return jsonOrThrow<SessionListItem[]>(res, t('errors.historyFailed'))
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
   const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error(`삭제 실패 (${res.status})`)
+  if (!res.ok) throw new Error(t('errors.deleteFailed', { status: res.status }))
 }
 
 // ===== Sessions =====
@@ -188,13 +194,14 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
   else if (input.resumeText) form.append('resume_text', input.resumeText)
   if (input.idealProfile) form.append('ideal_profile', input.idealProfile)
   form.append('question_count', String(input.questionCount))
+  form.append('language', input.language)
   const res = await authedFetch(`${API_BASE}/api/sessions`, { method: 'POST', body: form })
-  return jsonOrThrow<SessionRead>(res, `요청 실패 (${res.status})`)
+  return jsonOrThrow<SessionRead>(res, t('errors.requestFailed', { status: res.status }))
 }
 
 export async function getSession(sessionId: string): Promise<SessionRead> {
   const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}`)
-  return jsonOrThrow<SessionRead>(res, '세션을 불러올 수 없습니다.')
+  return jsonOrThrow<SessionRead>(res, t('errors.sessionFailed'))
 }
 
 export async function uploadAnswer(
@@ -208,24 +215,24 @@ export async function uploadAnswer(
     method: 'POST',
     body: form,
   })
-  return jsonOrThrow<AnswerUploadResponse>(res, `업로드 실패 (${res.status})`)
+  return jsonOrThrow<AnswerUploadResponse>(res, t('errors.uploadFailed', { status: res.status }))
 }
 
 export async function getAnalysisStatus(sessionId: string): Promise<AnalysisStatus> {
   const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/analysis-status`)
-  return jsonOrThrow<AnalysisStatus>(res, '분석 상태 조회 실패')
+  return jsonOrThrow<AnalysisStatus>(res, t('errors.analysisStatusFailed'))
 }
 
 export async function triggerFeedback(
   sessionId: string,
 ): Promise<{ session_id: string; status: string }> {
   const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/feedback`, { method: 'POST' })
-  return jsonOrThrow(res, '종합 피드백 생성에 실패했습니다.')
+  return jsonOrThrow(res, t('errors.feedbackFailed'))
 }
 
 export async function getResult(sessionId: string): Promise<ResultResponse> {
   const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/result`)
-  return jsonOrThrow<ResultResponse>(res, '결과를 불러올 수 없습니다.')
+  return jsonOrThrow<ResultResponse>(res, t('errors.resultFailed'))
 }
 
 export function getVideoUrl(sessionId: string, qIndex: number): string {
@@ -235,6 +242,6 @@ export function getVideoUrl(sessionId: string, qIndex: number): string {
 // <video src>는 Authorization 헤더를 못 보내므로, 인증된 fetch로 blob을 받아 URL.createObjectURL 사용.
 export async function fetchVideoBlob(sessionId: string, qIndex: number): Promise<Blob> {
   const res = await authedFetch(`${API_BASE}/api/sessions/${sessionId}/answers/${qIndex}/video`)
-  if (!res.ok) throw new Error(`영상 로드 실패 (${res.status})`)
+  if (!res.ok) throw new Error(t('errors.videoFailed', { status: res.status }))
   return res.blob()
 }

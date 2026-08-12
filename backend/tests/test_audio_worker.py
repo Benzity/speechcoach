@@ -29,3 +29,20 @@ def test_realistic_answer():
     expected = 3 + 4 + 3 + 5 + 4 + 2 + 6
     assert _count_syllables(text) == expected
     assert expected == 27
+
+
+def test_english_syllable_estimation():
+    # en 모드: 모음군 기반 추정 — beautiful(eau/i/u→3), cat(1), rhythm(y→1)
+    assert _count_syllables("beautiful", "en") == 3
+    assert _count_syllables("cat", "en") == 1
+    assert _count_syllables("rhythm", "en") == 1
+
+
+def test_english_mode_multiword():
+    # I(1) + worked(o,e→2) + on(1) + it(1) = 5
+    assert _count_syllables("I worked on it", "en") == 1 + 2 + 1 + 1
+
+
+def test_ko_mode_unchanged_default():
+    # 기본값(ko)은 기존 동작 유지
+    assert _count_syllables("Python으로 개발한다") == 7

@@ -32,6 +32,10 @@ class Session(Base):
     resume_text: Mapped[str] = mapped_column(Text, nullable=False)
     ideal_profile: Mapped[str | None] = mapped_column(Text, nullable=True)
     question_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 면접 언어 'ko' | 'en' — 질문 생성/ASR/피드백 언어를 결정
+    language: Mapped[str] = mapped_column(
+        String, nullable=False, default="ko", server_default="ko"
+    )
     # 'created' | 'in_progress' | 'analyzing' | 'completed' | 'failed'
     status: Mapped[str] = mapped_column(String, nullable=False, default="created")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

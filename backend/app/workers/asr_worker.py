@@ -25,10 +25,10 @@ def _load_model() -> Any:
     return _model
 
 
-def transcribe(audio_path: Path) -> dict[str, Any]:
+def transcribe(audio_path: Path, language: str = "ko") -> dict[str, Any]:
     """오디오 파일을 전사. 반환: {transcript, segments, duration}."""
     model = _load_model()
-    segments, info = model.transcribe(str(audio_path), language="ko", beam_size=1)
+    segments, info = model.transcribe(str(audio_path), language=language, beam_size=1)
     segs: list[dict[str, Any]] = []
     parts: list[str] = []
     for s in segments:

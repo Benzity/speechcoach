@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { deleteSession, listMySessions, type SessionListItem, type SessionStatus } from '../api'
+import { useI18n } from '../i18n'
 
-const STATUS_LABEL: Record<SessionStatus, string> = {
-  created: '진행 전',
-  in_progress: '진행 중',
-  analyzing: '분석 중',
-  completed: '완료',
-  failed: '실패',
+const STATUS_LABEL_KEY: Record<SessionStatus, string> = {
+  created: 'history.statusCreated',
+  in_progress: 'history.statusInProgress',
+  analyzing: 'history.statusAnalyzing',
+  completed: 'history.statusCompleted',
+  failed: 'history.statusFailed',
 }
 
 const STATUS_STYLE: Record<SessionStatus, string> = {
@@ -20,6 +21,7 @@ const STATUS_STYLE: Record<SessionStatus, string> = {
 
 export default function HistoryPage() {
   const navigate = useNavigate()
+  const { t, locale } = useI18n()
   const [items, setItems] = useState<SessionListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +32,7 @@ export default function HistoryPage() {
   }, [])
 
   async function handleDelete(id: string) {
-    if (!confirm('정말 이 면접 기록을 삭제할까요? 영상도 함께 삭제됩니다.')) return
+    if (!confirm(t('history.deleteConfirm'))) return
     try {
       await deleteSession(id)
       setItems((prev) => (prev ?? []).filter((s) => s.id !== id))
@@ -52,17 +54,17 @@ export default function HistoryPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              내 면접 기록
+              {t('history.title')}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              지난 모의면접과 점수를 한눈에 확인하세요.
+              {t('history.subtitle')}
             </p>
           </div>
           <Link
             to="/onboarding"
             className="inline-flex items-center gap-2 bg-gradient-to-r from-sky-500 to-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-sm"
           >
-            + 새 면접 시작
+            {t('history.newInterview')}
           </Link>
         </div>
 
@@ -73,17 +75,17 @@ export default function HistoryPage() {
         )}
 
         {items === null && !error && (
-          <div className="text-center text-slate-400 py-20">불러오는 중...</div>
+          <div className="text-center text-slate-400 py-20">{t('history.loading')}</div>
         )}
 
         {items !== null && items.length === 0 && (
           <div className="text-center py-20">
-            <p className="text-slate-500 mb-4">아직 진행한 면접이 없어요.</p>
+            <p className="text-slate-500 mb-4">{t('history.emptyMessage')}</p>
             <Link
               to="/onboarding"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-sky-500 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
             >
-              첫 면접 시작하기
+              {t('history.startFirstInterview')}
             </Link>
           </div>
         )}
@@ -100,7 +102,7 @@ export default function HistoryPage() {
                   <span
                     className={`text-[10px] font-bold tracking-wider px-2 py-0.5 rounded ${STATUS_STYLE[s.status]}`}
                   >
-                    {STATUS_LABEL[s.status]}
+                    {t(STATUS_LABEL_KEY[s.status])}
                   </span>
                   <button
                     onClick={(e) => {
@@ -108,7 +110,7 @@ export default function HistoryPage() {
                       handleDelete(s.id)
                     }}
                     className="text-slate-300 hover:text-rose-500 text-xs"
-                    title="삭제"
+                    title={t('history.deleteTitle')}
                   >
                     ✕
                   </button>
@@ -117,8 +119,8 @@ export default function HistoryPage() {
                   {s.job_title}
                 </h3>
                 <div className="text-xs text-slate-500 mb-3">
-                  질문 {s.question_count}개 ·{' '}
-                  {new Date(s.created_at).toLocaleString('ko-KR', {
+                  {t('history.questionCount', { count: s.question_count })} ·{' '}
+                  {new Date(s.created_at).toLocaleString(locale === 'en' ? 'en-US' : 'ko-KR', {
                     year: 'numeric',
                     month: 'numeric',
                     day: 'numeric',

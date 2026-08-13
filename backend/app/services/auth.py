@@ -28,10 +28,12 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str) -> str:
+def create_access_token(user_id: str, token_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
+        # 토큰 세대. 서버의 users.token_version과 다르면 폐기된 토큰으로 본다.
+        "tv": token_version,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(days=JWT_ACCESS_TTL_DAYS)).timestamp()),
     }

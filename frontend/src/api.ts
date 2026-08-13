@@ -143,17 +143,53 @@ async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export type SignupConsents = {
+  /** 개인정보 수집·이용 동의 (필수, 제15조·제22조) */
+  privacy: boolean
+  /** 개인정보 국외이전 동의 (필수, 제28조의8) — Claude API(미국) 전송 */
+  overseas: boolean
+}
+
 export async function apiSignup(
   email: string,
   password: string,
+  /** YYYY-MM-DD. 만 14세 확인용이며 서버에 저장되지 않는다 (제22조의2). */
+  birthDate: string,
+  consents: SignupConsents,
   displayName?: string,
 ): Promise<TokenResponse> {
   const res = await authedFetch(`${API_BASE}/api/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, display_name: displayName }),
+    body: JSON.stringify({
+      email,
+      password,
+      birth_date: birthDate,
+      display_name: displayName,
+      consent_privacy: consents.privacy,
+      consent_overseas: consents.overseas,
+    }),
   })
   return jsonOrThrow<TokenResponse>(res, '회원가입에 실패했습니다.')
+}
+
+/** 로그아웃 — 서버에서 토큰을 무효화한 뒤 로컬 토큰을 지운다. */
+export async function apiLogout(): Promise<void> {
+  try {
+    await authedFetch(`${API_BASE}/api/auth/logout`, { method: 'POST' }, false)
+  } finally {
+    // 서버 호출이 실패해도 로컬 토큰은 반드시 제거한다.
+    clearToken()
+  }
+}
+
+/** 회원 탈퇴 — 계정·세션·영상이 전부 삭제된다 (되돌릴 수 없음). */
+export async function apiDeleteAccount(): Promise<void> {
+  const res = await authedFetch(`${API_BASE}/api/auth/me`, { method: 'DELETE' }, false)
+  if (!res.ok && res.status !== 401) {
+    throw new Error(`탈퇴 처리에 실패했습니다 (${res.status})`)
+  }
+  clearToken()
 }
 
 export async function apiLogin(email: string, password: string): Promise<TokenResponse> {

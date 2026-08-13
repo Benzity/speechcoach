@@ -15,3 +15,6 @@ ffmpeg-python
 numpy
 bcrypt
 PyJWT
+# 답변 영상 저장 암호화(AES-256-GCM)에 사용 — 안전성 확보조치 기준 제7조.
+# 전이 의존성으로 들어오더라도 직접 사용하므로 명시한다.
+cryptography

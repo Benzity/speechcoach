@@ -11,6 +11,8 @@ from typing import Any, Callable
 from app.db.database import SessionLocal
 from app.db.models import Analysis as AnalysisModel
 from app.services.filler_detector import count_fillers, count_stutters, extract_filler_events
+from app.services.secure_delete import secure_delete_file
+from app.services.video_crypto import VideoCryptoError, decrypt_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +21,34 @@ def run_analysis_for_question(question_id: str) -> None:
     """질문 1개의 영상 → ASR/Vision/Audio → DB 저장."""
     db = SessionLocal()
     audio_path: Path | None = None
+    # 저장본은 암호화되어 있고 ffmpeg·OpenCV는 파일 경로를 요구하므로,
+    # 분석 동안만 평문 임시 파일을 만든다. finally에서 덮어쓰기 삭제한다.
+    plain_video: Path | None = None
     try:
         analysis = db.get(AnalysisModel, question_id)
         if not analysis or not analysis.video_path:
             logger.error("분석 레코드 없음 또는 영상 경로 없음 q=%s", question_id)
             return
 
-        video_path = Path(analysis.video_path)
-        if not video_path.exists():
-            logger.error("영상 파일 없음: %s", video_path)
+        stored_path = Path(analysis.video_path)
+        if not stored_path.exists():
+            logger.error("영상 파일 없음: %s", stored_path)
             _mark_failed(db, analysis)
             return
 
         analysis.status = "processing"
         analysis.started_at = datetime.utcnow()
         db.commit()
+
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+                plain_video = Path(tmp.name)
+            decrypt_to_file(stored_path, plain_video)
+        except VideoCryptoError:
+            logger.exception("영상 복호화 실패 q=%s", question_id)
+            _mark_failed(db, analysis)
+            return
+        video_path = plain_video
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             audio_path = Path(tmp.name)
@@ -93,8 +108,12 @@ def run_analysis_for_question(question_id: str) -> None:
         except Exception:
             pass
     finally:
+        # 추출된 음성과 복호화된 영상 모두 개인정보다. 단순 삭제가 아니라
+        # 덮어쓰기 삭제로 지운다 (시행령 제16조).
         if audio_path is not None:
-            audio_path.unlink(missing_ok=True)
+            secure_delete_file(audio_path)
+        if plain_video is not None:
+            secure_delete_file(plain_video)
         db.close()
 
 

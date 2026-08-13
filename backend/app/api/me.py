@@ -13,7 +13,10 @@ from app.db.models import User as UserModel
 from app.schemas.sessions import SessionListItem
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/me", tags=["me"])
+# router-level 인증 (default-deny). app/core/route_guard.py 참고.
+router = APIRouter(
+    prefix="/api/me", tags=["me"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get(

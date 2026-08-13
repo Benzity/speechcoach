@@ -24,6 +24,7 @@ import {
   type SessionRead,
 } from '../api'
 import { useAuth } from '../auth/AuthContext'
+import { AiGeneratedBadge, AiUsageNotice } from '../components/AiDisclosure'
 import { useI18n } from '../i18n'
 
 const GAZE_COLORS: Record<string, string> = {
@@ -79,9 +80,15 @@ export default function ResultPage() {
       <ResultHero session={data.session} scores={feedback?.scores ?? null} />
 
       <main className="max-w-6xl mx-auto px-6 pb-16 space-y-6">
+        {/* AI기본법 제31조 — 생성형 AI 산출물임을 결과 상단에 고지 */}
+        <AiUsageNotice />
+
         {feedback ? (
           <>
             <Section title={t('result.sectionSummary')} badge="①">
+              <div className="mb-3">
+                <AiGeneratedBadge />
+              </div>
               <p className="text-slate-800 leading-loose whitespace-pre-wrap">
                 {feedback.overall_summary}
               </p>
@@ -125,11 +132,17 @@ export default function ResultPage() {
           <>
             <div className="grid md:grid-cols-2 gap-6">
               <Section title={t('result.sectionNonverbalFeedback')}>
+                <div className="mb-3">
+                  <AiGeneratedBadge />
+                </div>
                 <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">
                   {feedback.nonverbal_feedback}
                 </p>
               </Section>
               <Section title={t('result.sectionVerbalFeedback')}>
+                <div className="mb-3">
+                  <AiGeneratedBadge />
+                </div>
                 <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">
                   {feedback.verbal_feedback}
                 </p>

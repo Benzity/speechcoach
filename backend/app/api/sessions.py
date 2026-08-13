@@ -4,7 +4,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.config import VIDEO_DIR
@@ -23,12 +23,25 @@ from app.schemas.sessions import (
     SessionResultResponse,
 )
 from app.services.feedback_generator import FeedbackGenerationError, generate_feedback
+from app.services.pii_masker import mask_pii, mask_report
 from app.services.question_generator import QuestionGenerationError, generate_questions
 from app.services.resume_parser import ResumeParseError, extract_text_from_pdf
+from app.services.video_crypto import VideoCryptoError, decrypt_iter, encrypt_stream
 from app.workers.queue import submit_analysis
 
+# 업로드 상한. 법령이 수치를 정하지 않으므로 서비스 특성에 맞춘 판단값이다.
+# (ASVS V5는 "상한을 문서화하고 강제할 것"을 요구하되 숫자는 지정하지 않는다.)
+MAX_PDF_BYTES = 10 * 1024 * 1024  # 10MB — 텍스트 이력서로는 충분
+MAX_VIDEO_BYTES = 200 * 1024 * 1024  # 200MB — 60초 webm 기준 여유
+MAX_RESUME_CHARS = 50_000  # 직접 입력 텍스트 상한
+
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["sessions"])
+# router-level 인증: 이 라우터에 추가되는 모든 엔드포인트는 기본으로 보호된다.
+# 개별 함수의 Depends(get_current_user)는 current_user 값을 쓰기 위해 남겨두며,
+# FastAPI가 요청 단위로 캐싱하므로 중복 조회는 발생하지 않는다.
+router = APIRouter(
+    prefix="/api", tags=["sessions"], dependencies=[Depends(get_current_user)]
+)
 
 
 def _get_owned_session(
@@ -65,9 +78,22 @@ def create_session(
         raise HTTPException(status_code=400, detail="지원하지 않는 언어입니다. (ko, en)")
 
     text = (resume_text or "").strip()
+    if len(text) > MAX_RESUME_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"이력서 텍스트는 {MAX_RESUME_CHARS:,}자를 넘을 수 없습니다.",
+        )
+
     if resume_pdf is not None and (resume_pdf.filename or "").strip():
         try:
-            content = resume_pdf.file.read()
+            # 전체를 메모리에 올리기 전에 크기를 확인한다. 상한을 1바이트 넘겨
+            # 읽어보고 초과분이 있으면 거부한다.
+            content = resume_pdf.file.read(MAX_PDF_BYTES + 1)
+            if len(content) > MAX_PDF_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"이력서 PDF는 {MAX_PDF_BYTES // (1024 * 1024)}MB 이하여야 합니다.",
+                )
             text = extract_text_from_pdf(content)
         except ResumeParseError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
@@ -79,6 +105,14 @@ def create_session(
             status_code=400,
             detail="이력서 텍스트를 입력하거나 PDF 파일을 업로드해주세요.",
         )
+
+    # LLM(해외)으로 나가기 전에 식별정보를 지운다 (제16조 최소수집).
+    # DB에도 마스킹본을 저장해, 이후 피드백 생성 시에도 원문이 새지 않게 한다.
+    masked = mask_pii(text)
+    found = mask_report(text)
+    if found:
+        logger.info("이력서 PII 마스킹 적용: %s", found)
+    text = masked
 
     try:
         question_dicts = generate_questions(
@@ -157,13 +191,35 @@ def upload_answer(
     session_dir.mkdir(parents=True, exist_ok=True)
     video_path = session_dir / f"{q_index}.webm"
 
-    with open(video_path, "wb") as f:
+    # 업로드를 읽으면서 크기를 검사하고, 그대로 암호화해 저장한다.
+    # 평문이 디스크에 닿지 않도록 스트림 중간에서 암호화한다
+    # (안전성 확보조치 기준 제7조).
+    def _bounded_chunks():
+        total = 0
         while True:
             chunk = video.file.read(1024 * 1024)
             if not chunk:
                 break
-            f.write(chunk)
-    video.file.close()
+            total += len(chunk)
+            if total > MAX_VIDEO_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"답변 영상은 {MAX_VIDEO_BYTES // (1024 * 1024)}MB 이하여야 합니다.",
+                )
+            yield chunk
+
+    try:
+        encrypt_stream(_bounded_chunks(), video_path)
+    except HTTPException:
+        # 상한 초과 등으로 중단된 경우 쓰다 만 파일을 남기지 않는다.
+        video_path.unlink(missing_ok=True)
+        raise
+    except VideoCryptoError as e:
+        video_path.unlink(missing_ok=True)
+        logger.error("영상 암호화 실패: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        video.file.close()
 
     analysis = db.get(AnalysisModel, question.id)
     if analysis is None:
@@ -352,7 +408,20 @@ def stream_answer_video(
     video_path = VIDEO_DIR / session_id / f"{q_index}.webm"
     if not video_path.exists():
         raise HTTPException(status_code=404, detail="영상 파일을 찾을 수 없습니다.")
-    return FileResponse(video_path, media_type="video/webm")
+
+    # 저장본이 암호화되어 있으므로 복호화하며 스트리밍한다.
+    # 평문 임시 파일을 만들지 않으므로 노출 창이 없다.
+    # (Range 요청은 지원하지 않는다 — 청크 암호화라 임의 지점 탐색이 불가능하다.
+    #  현재 프론트엔드는 blob으로 전체를 받아 재생하므로 문제되지 않는다.)
+    try:
+        return StreamingResponse(
+            decrypt_iter(video_path),
+            media_type="video/webm",
+            headers={"Content-Disposition": f'inline; filename="{q_index}.webm"'},
+        )
+    except VideoCryptoError as e:
+        logger.error("영상 복호화 실패 session=%s q=%d: %s", session_id, q_index, e)
+        raise HTTPException(status_code=500, detail="영상을 읽을 수 없습니다.") from e
 
 
 @router.delete(

@@ -1,0 +1,108 @@
+SpeechCoach AI
+Copyright (c) 2026 [TODO: 사업자명 또는 저작권자]
+
+이 제품은 아래 오픈소스 소프트웨어를 포함하거나 이용합니다.
+각 구성요소의 라이선스 전문은 THIRD_PARTY_LICENSES.md를 참조하십시오.
+
+────────────────────────────────────────────────────────────────────────
+Apache License 2.0
+────────────────────────────────────────────────────────────────────────
+MediaPipe
+  Copyright 2019 The MediaPipe Authors
+  https://github.com/google-ai-edge/mediapipe
+
+OpenCV (opencv-python)
+  Copyright (c) 2000-2024, OpenCV team
+  https://github.com/opencv/opencv-python
+
+────────────────────────────────────────────────────────────────────────
+MIT License
+────────────────────────────────────────────────────────────────────────
+faster-whisper
+  Copyright (c) 2023 SYSTRAN
+  https://github.com/SYSTRAN/faster-whisper
+
+OpenAI Whisper (모델 가중치)
+  Copyright (c) 2022 OpenAI
+  https://github.com/openai/whisper
+
+FastAPI
+  Copyright (c) 2018 Sebastián Ramírez
+  https://github.com/fastapi/fastapi
+
+Starlette
+  Copyright (c) 2018, Encode OSS Ltd
+  https://github.com/encode/starlette
+
+Pydantic
+  Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors
+  https://github.com/pydantic/pydantic
+
+SQLAlchemy
+  Copyright 2005-2026 SQLAlchemy authors and contributors
+  https://github.com/sqlalchemy/sqlalchemy
+
+PyJWT
+  Copyright (c) 2015-2022 José Padilla
+  https://github.com/jpadilla/pyjwt
+
+pdfplumber
+  Copyright (c) 2016 Jeremy Singer-Vine
+  https://github.com/jsvine/pdfplumber
+
+React
+  Copyright (c) Meta Platforms, Inc. and affiliates
+  https://github.com/facebook/react
+
+React Router
+  Copyright (c) React Training LLC / Remix Software Inc.
+  https://github.com/remix-run/react-router
+
+Vite
+  Copyright (c) 2019-present VoidZero Inc. and Vite contributors
+  https://github.com/vitejs/vite
+
+Tailwind CSS
+  Copyright (c) Tailwind Labs, Inc.
+  https://github.com/tailwindlabs/tailwindcss
+
+Recharts
+  Copyright (c) 2015 recharts
+  https://github.com/recharts/recharts
+
+────────────────────────────────────────────────────────────────────────
+ISC License
+────────────────────────────────────────────────────────────────────────
+librosa
+  Copyright (c) 2013--2023, librosa development team
+  https://github.com/librosa/librosa
+
+────────────────────────────────────────────────────────────────────────
+BSD 3-Clause License
+────────────────────────────────────────────────────────────────────────
+NumPy
+  Copyright (c) 2005-2026, NumPy Developers
+  https://github.com/numpy/numpy
+
+SciPy
+  Copyright (c) 2001-2026, SciPy Developers
+  https://github.com/scipy/scipy
+
+uvicorn
+  Copyright (c) 2017-present, Encode OSS Ltd
+  https://github.com/encode/uvicorn
+
+────────────────────────────────────────────────────────────────────────
+Apache License 2.0 (기타)
+────────────────────────────────────────────────────────────────────────
+bcrypt (python)
+  Copyright (c) The Python Cryptographic Authority
+  https://github.com/pyca/bcrypt
+
+anthropic-sdk-python
+  Copyright (c) Anthropic, PBC
+  https://github.com/anthropics/anthropic-sdk-python
+
+────────────────────────────────────────────────────────────────────────
+전체 의존성 목록(버전 포함)은 sbom/ 디렉터리의 SBOM 파일을 참조하십시오.
+갱신 방법은 THIRD_PARTY_LICENSES.md 하단을 참조하십시오.

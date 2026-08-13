@@ -8,6 +8,7 @@ import * as errors from './errors'
 import * as history from './history'
 import * as interview from './interview'
 import * as onboarding from './onboarding'
+import * as privacy from './privacy'
 import * as processing from './processing'
 import * as result from './result'
 import * as start from './start'
@@ -23,6 +24,7 @@ const namespaces: Record<string, { ko: Record<string, string>; en: Record<string
   history,
   interview,
   onboarding,
+  privacy,
   processing,
   result,
   start,

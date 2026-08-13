@@ -537,6 +537,15 @@ export default function InterviewPage() {
                     {currentQuestion.category}
                   </span>
                 )}
+                {/* AI기본법 제31조 2항 — 질문이 생성형 AI 산출물임을 표시.
+                    어두운 배경이라 배지 대신 동일 문구의 경량 표기를 쓴다. */}
+                <span
+                  role="note"
+                  aria-label="이 질문은 생성형 인공지능이 만들었습니다"
+                  className="text-[10px] px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-300 border border-violet-500/20 font-medium"
+                >
+                  AI 생성 질문
+                </span>
               </div>
 
               <p className="text-center text-lg md:text-xl font-medium leading-relaxed text-white max-w-xl min-h-[4rem]">

@@ -8,9 +8,14 @@ export default function Header() {
   const { t } = useI18n()
   const navigate = useNavigate()
 
-  function handleLogout() {
-    logout()
-    navigate('/login')
+  // logout()은 서버에 토큰 무효화를 요청하므로 async다. 완료 후 이동한다.
+  // 서버 호출이 실패해도 로컬 토큰은 이미 지워졌으므로 finally에서 이동한다.
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      navigate('/login')
+    }
   }
 
   return (

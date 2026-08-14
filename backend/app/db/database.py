@@ -20,6 +20,11 @@ def _enable_wal(dbapi_connection, _record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA foreign_keys=ON")
+    # 삭제된 레코드가 남긴 내용을 0으로 덮어쓴다 (시행령 제16조 '복원 불가').
+    # 기본값(OFF)에서는 DELETE가 페이지를 free list에 반환만 하므로 원본 바이트가
+    # 파일에 그대로 남아 복구 도구로 읽힐 수 있다. 쓰기 비용이 다소 늘지만
+    # 개인정보를 다루는 시스템에서는 켜는 것이 맞다.
+    cursor.execute("PRAGMA secure_delete=ON")
     cursor.close()
 
 

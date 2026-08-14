@@ -1,0 +1,13 @@
+# 개발·검증 전용 의존성. 제품에 배포되지 않으므로 OSS 고지 대상이 아니다.
+# (예: semgrep은 LGPL-2.1이지만 개발 도구라 고지 의무가 발생하지 않는다)
+-r requirements.txt
+
+# 테스트
+pytest
+httpx            # fastapi.testclient가 요구
+
+# 보안 검사 도구
+semgrep          # SAST — LGPL-2.1-or-later (개발 도구, 미배포)
+detect-secrets   # 시크릿 커밋 차단
+pip-audit        # 의존성 CVE 조회
+cyclonedx-bom    # SBOM 생성

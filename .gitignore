@@ -10,10 +10,14 @@ __pycache__/
 *.so
 .Python
 .venv/
+.venv-runtime/
 venv/
 env/
 *.egg-info/
 .pytest_cache/
+
+# 보안 검사 산출물 (SBOM은 커밋 대상이므로 제외하지 않음)
+semgrep-report.json
 
 # Node
 node_modules/

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { deleteSession, listMySessions, type SessionListItem, type SessionStatus } from '../api'
+import { useAuth } from '../auth/AuthContext'
 import { useI18n } from '../i18n'
 
 const STATUS_LABEL_KEY: Record<SessionStatus, string> = {
@@ -22,8 +23,10 @@ const STATUS_STYLE: Record<SessionStatus, string> = {
 export default function HistoryPage() {
   const navigate = useNavigate()
   const { t, locale } = useI18n()
+  const { deleteAccount } = useAuth()
   const [items, setItems] = useState<SessionListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   useEffect(() => {
     listMySessions()
@@ -38,6 +41,19 @@ export default function HistoryPage() {
       setItems((prev) => (prev ?? []).filter((s) => s.id !== id))
     } catch (e) {
       alert((e as Error).message)
+    }
+  }
+
+  // 처리방침 9항이 안내하는 '처리정지 및 동의 철회'의 실제 행사 경로.
+  async function handleDeleteAccount() {
+    if (!confirm(t('history.accountDeleteConfirm'))) return
+    setIsDeletingAccount(true)
+    try {
+      await deleteAccount()
+      navigate('/login')
+    } catch (e) {
+      alert((e as Error).message)
+      setIsDeletingAccount(false)
     }
   }
 
@@ -140,6 +156,24 @@ export default function HistoryPage() {
             ))}
           </div>
         )}
+
+        <section className="mt-16 pt-8 border-t border-slate-200">
+          <h2 className="text-sm font-bold text-slate-900 mb-2">
+            {t('history.accountTitle')}
+          </h2>
+          <p className="text-xs text-slate-500 leading-relaxed max-w-2xl mb-3">
+            {t('history.accountDeleteHint')}
+          </p>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={isDeletingAccount}
+            className="text-sm font-medium text-rose-600 border border-rose-200 rounded-lg px-4 py-2 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isDeletingAccount
+              ? t('history.accountDeleting')
+              : t('history.accountDeleteLabel')}
+          </button>
+        </section>
       </main>
     </div>
   )

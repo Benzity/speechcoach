@@ -156,8 +156,14 @@ export default function SignupPage() {
                 <ConsentField label={t('auth.fieldReceiver')}>
                   {t('auth.overseasReceiver')}
                 </ConsentField>
+                <ConsentField label={t('auth.fieldTransferContact')}>
+                  {t('auth.overseasContact')}
+                </ConsentField>
                 <ConsentField label={t('auth.fieldTransferItems')}>
                   {t('auth.overseasItems')}
+                </ConsentField>
+                <ConsentField label={t('auth.fieldTransferWhen')}>
+                  {t('auth.overseasWhen')}
                 </ConsentField>
                 <ConsentField label={t('auth.fieldTransferPurpose')}>
                   {t('auth.overseasPurpose')}

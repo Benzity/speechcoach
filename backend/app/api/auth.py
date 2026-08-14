@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # 동의 문구가 바뀌면 이 값을 올린다. 어떤 버전에 동의했는지 이력에 남는다.
-CONSENT_VERSION = "2026-08-13"
+# frontend/src/pages/PrivacyPage.tsx의 EFFECTIVE_DATE와 같은 값을 유지할 것.
+CONSENT_VERSION = "2026-08-14"
 
 
 @router.post(

@@ -1,22 +1,26 @@
 /**
  * 개인정보 처리방침 (개인정보 보호법 제30조).
  *
- * ⚠️ 게시 전 확인 필요: 아래 TODO 항목은 사업자만 확정할 수 있습니다.
- *    - 사업자명 / 대표자 / 사업자등록번호 / 주소
- *    - 개인정보 보호책임자 성명·직책·연락처
- *    변호사 검토 후 게시하시기 바랍니다.
- *
- * 문구는 i18n/privacy.ts에 있습니다. 보유기간·수집항목은 실제 코드 동작과
- * 일치시켰으므로, 변경 시 backend/app/services/retention.py 및 동의 화면
+ * 조 번호는 법 제30조 제1항의 기재사항 순서를 따릅니다. 문구는
+ * i18n/privacy.ts에 있고, 보유기간·수집항목은 실제 코드 동작과
+ * 일치시켰으므로 변경 시 backend/app/services/retention.py 및 동의 화면
  * (i18n/auth.ts)과 함께 수정해야 합니다.
+ *
+ * ⚠️ 법인 설립 시 갱신 필요: 사업자명 / 대표자 / 사업자등록번호 / 주소 /
+ *    보호책임자 직책·부서. 정식 서비스 개시 전 변호사 검토를 권합니다.
  */
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 
-const EFFECTIVE_DATE = '2026-08-13'
-const OPERATOR = '[TODO: 사업자명]'
-const DPO_NAME = '[TODO: 개인정보 보호책임자 성명]'
-const DPO_CONTACT = '[TODO: 연락처 이메일]'
+// 변경 시 i18n/privacy.ts의 개정 이력(s12V*)에 한 줄 추가할 것.
+const EFFECTIVE_DATE = '2026-08-14'
+
+// 법 제31조·시행령 제31조 제3항 — 성명·부서·연락처 공개 의무.
+// 창업 준비 단계라 부서·직책이 없어 성명과 연락처만 공개한다.
+// 법인 설립 후에는 사업자명·주소·직책을 갱신할 것.
+const OPERATOR = 'SpeechCoachAI'
+const DPO_NAME = '도승민'
+const DPO_CONTACT = 'rrvat1016@cau.ac.kr'
 
 export default function PrivacyPage() {
   const { t } = useI18n()
@@ -125,60 +129,156 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title={t('privacy.s4Title')}>
-            <p>{t('privacy.s4Intro')}</p>
-            <Table
-              head={[t('privacy.s4ColItem'), t('privacy.s4ColDetail')]}
-              rows={[
-                [t('privacy.s4Receiver'), t('privacy.s4ReceiverVal')],
-                [t('privacy.s4Country'), t('privacy.s4CountryVal')],
-                [t('privacy.s4Items'), t('privacy.s4ItemsVal')],
-                [t('privacy.s4Purpose'), t('privacy.s4PurposeVal')],
-                [t('privacy.s4Method'), t('privacy.s4MethodVal')],
-                [t('privacy.s4Period'), t('privacy.s4PeriodVal')],
-              ]}
-            />
+            <p>{t('privacy.s4Body')}</p>
+            <p className="text-xs text-slate-500">{t('privacy.s4Exception')}</p>
           </Section>
 
           <Section title={t('privacy.s5Title')}>
-            <p>{t('privacy.s5Body1')}</p>
-            <p>{t('privacy.s5Body2')}</p>
+            <p>{t('privacy.s5Intro')}</p>
+            <Table
+              head={[t('privacy.s5ColTrustee'), t('privacy.s5ColWork')]}
+              rows={[[t('privacy.s5NgrokName'), t('privacy.s5NgrokWork')]]}
+            />
+            <p className="text-xs text-slate-500 mt-2">{t('privacy.s5Note')}</p>
           </Section>
 
           <Section title={t('privacy.s6Title')}>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>{t('privacy.s6Item1')}</li>
-              <li>{t('privacy.s6Item2')}</li>
-              <li>{t('privacy.s6Item3')}</li>
-              <li>{t('privacy.s6Item4')}</li>
-            </ul>
+            <p>{t('privacy.s6Intro')}</p>
+
+            <p className="font-semibold text-slate-800 mt-3">{t('privacy.s6aCaption')}</p>
+            <Table
+              head={[t('privacy.s6ColItem'), t('privacy.s6ColDetail')]}
+              rows={[
+                [t('privacy.s6LblBasis'), t('privacy.s6aBasis')],
+                [t('privacy.s6LblReceiver'), t('privacy.s6aReceiver')],
+                [t('privacy.s6LblCountry'), t('privacy.s6aCountry')],
+                [t('privacy.s6LblContact'), t('privacy.s6aContact')],
+                [t('privacy.s6LblItems'), t('privacy.s6aItems')],
+                [t('privacy.s6LblWhen'), t('privacy.s6aWhen')],
+                [t('privacy.s6LblPurpose'), t('privacy.s6aPurpose')],
+                [t('privacy.s6LblPeriod'), t('privacy.s6aPeriod')],
+                [t('privacy.s6LblRefuse'), t('privacy.s6aRefuse')],
+              ]}
+            />
+
+            <p className="font-semibold text-slate-800 mt-4">{t('privacy.s6bCaption')}</p>
+            <Table
+              head={[t('privacy.s6ColItem'), t('privacy.s6ColDetail')]}
+              rows={[
+                [t('privacy.s6LblBasis'), t('privacy.s6bBasis')],
+                [t('privacy.s6LblReceiver'), t('privacy.s6bReceiver')],
+                [t('privacy.s6LblCountry'), t('privacy.s6bCountry')],
+                [t('privacy.s6LblContact'), t('privacy.s6bContact')],
+                [t('privacy.s6LblItems'), t('privacy.s6bItems')],
+                [t('privacy.s6LblWhen'), t('privacy.s6bWhen')],
+                [t('privacy.s6LblPurpose'), t('privacy.s6bPurpose')],
+                [t('privacy.s6LblPeriod'), t('privacy.s6bPeriod')],
+                [t('privacy.s6LblRefuse'), t('privacy.s6bRefuse')],
+              ]}
+            />
           </Section>
 
           <Section title={t('privacy.s7Title')}>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>{t('privacy.s7Item1')}</li>
-              <li>{t('privacy.s7Item2')}</li>
-              <li>{t('privacy.s7Item3')}</li>
-              <li>{t('privacy.s7Item4')}</li>
-              <li>{t('privacy.s7Item5')}</li>
-              <li>{t('privacy.s7Item6')}</li>
-              <li>{t('privacy.s7Item7')}</li>
-            </ul>
+            <p>{t('privacy.s7Intro')}</p>
+            <Table
+              head={[
+                t('privacy.s7ColItem'),
+                t('privacy.s7ColPurpose'),
+                t('privacy.s7ColRefuse'),
+              ]}
+              rows={[
+                [
+                  t('privacy.s7TokenItem'),
+                  t('privacy.s7TokenPurpose'),
+                  t('privacy.s7TokenRefuse'),
+                ],
+                [
+                  t('privacy.s7LocaleItem'),
+                  t('privacy.s7LocalePurpose'),
+                  t('privacy.s7LocaleRefuse'),
+                ],
+                [t('privacy.s7LogItem'), t('privacy.s7LogPurpose'), t('privacy.s7LogRefuse')],
+              ]}
+            />
+            <p className="mt-2">{t('privacy.s7NoteNoCookie')}</p>
+            <p className="text-xs text-slate-500 mt-1">{t('privacy.s7NoteHow')}</p>
           </Section>
 
           <Section title={t('privacy.s8Title')}>
-            <Table
-              head={[t('privacy.s8ColType'), t('privacy.s8ColDetail')]}
-              rows={[
-                [t('privacy.s8Operator'), OPERATOR],
-                [t('privacy.s8Dpo'), DPO_NAME],
-                [t('privacy.s8Contact'), DPO_CONTACT],
-              ]}
-            />
-            <p className="mt-2 text-xs text-slate-500">{t('privacy.s8Note')}</p>
+            <p>{t('privacy.s8Body1')}</p>
+            <p>{t('privacy.s8Body2')}</p>
           </Section>
 
           <Section title={t('privacy.s9Title')}>
-            <p>{t('privacy.s9Body')}</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>{t('privacy.s9Item1')}</li>
+              <li>{t('privacy.s9Item2')}</li>
+              <li>{t('privacy.s9Item3')}</li>
+              <li>{t('privacy.s9Item4')}</li>
+            </ul>
+            <p className="mt-2">{t('privacy.s9Period')}</p>
+            <p>{t('privacy.s9Refusal')}</p>
+            <p className="text-xs text-slate-500">{t('privacy.s9Agent')}</p>
+          </Section>
+
+          <Section title={t('privacy.s10Title')}>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>{t('privacy.s10Item1')}</li>
+              <li>{t('privacy.s10Item2')}</li>
+              <li>{t('privacy.s10Item3')}</li>
+              <li>{t('privacy.s10Item4')}</li>
+              <li>{t('privacy.s10Item5')}</li>
+              <li>{t('privacy.s10Item6')}</li>
+              <li>{t('privacy.s10Item7')}</li>
+            </ul>
+          </Section>
+
+          <Section title={t('privacy.s11Title')}>
+            <Table
+              head={[t('privacy.s11ColType'), t('privacy.s11ColDetail')]}
+              rows={[
+                [t('privacy.s11Operator'), OPERATOR],
+                [t('privacy.s11Dpo'), DPO_NAME],
+                [t('privacy.s11Contact'), DPO_CONTACT],
+              ]}
+            />
+            <p className="mt-2 text-xs text-slate-500">{t('privacy.s11Note')}</p>
+
+            <p className="font-semibold text-slate-800 mt-4">
+              {t('privacy.s11ReliefTitle')}
+            </p>
+            <p className="text-xs text-slate-500">{t('privacy.s11ReliefIntro')}</p>
+            <Table
+              head={[
+                t('privacy.s11ColOrg'),
+                t('privacy.s11ColPhone'),
+                t('privacy.s11ColSite'),
+              ]}
+              rows={[
+                [t('privacy.s11Kisa'), t('privacy.s11KisaPhone'), 'privacy.kisa.or.kr'],
+                [t('privacy.s11Kopico'), t('privacy.s11KopicoPhone'), 'www.kopico.go.kr'],
+                [t('privacy.s11Spo'), t('privacy.s11SpoPhone'), 'www.spo.go.kr'],
+                [t('privacy.s11Police'), t('privacy.s11PolicePhone'), 'ecrm.police.go.kr'],
+              ]}
+            />
+          </Section>
+
+          <Section title={t('privacy.s12Title')}>
+            <p>{t('privacy.s12Body')}</p>
+            <p className="font-semibold text-slate-800 mt-4">
+              {t('privacy.s12HistoryTitle')}
+            </p>
+            <Table
+              head={[
+                t('privacy.s12ColVersion'),
+                t('privacy.s12ColDate'),
+                t('privacy.s12ColChange'),
+              ]}
+              rows={[
+                ['v2', t('privacy.s12V2'), t('privacy.s12V2Change')],
+                ['v1', t('privacy.s12V1'), t('privacy.s12V1Change')],
+              ]}
+            />
           </Section>
         </div>
       </div>

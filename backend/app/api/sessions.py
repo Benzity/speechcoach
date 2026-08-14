@@ -413,15 +413,27 @@ def stream_answer_video(
     # 평문 임시 파일을 만들지 않으므로 노출 창이 없다.
     # (Range 요청은 지원하지 않는다 — 청크 암호화라 임의 지점 탐색이 불가능하다.
     #  현재 프론트엔드는 blob으로 전체를 받아 재생하므로 문제되지 않는다.)
+    #
+    # decrypt_iter는 제너레이터라 호출만으로는 본문이 실행되지 않는다. 매직 헤더·키
+    # 검증을 응답 헤더가 나가기 전에 끝내야 500으로 응답할 수 있으므로, 첫 청크를
+    # 미리 당겨 검증을 강제한다. 스트리밍 시작 후에는 이미 200이 나간 뒤라
+    # 상태코드를 바꿀 수 없다.
+    stream = decrypt_iter(video_path)
     try:
-        return StreamingResponse(
-            decrypt_iter(video_path),
-            media_type="video/webm",
-            headers={"Content-Disposition": f'inline; filename="{q_index}.webm"'},
-        )
+        first = next(stream, b"")
     except VideoCryptoError as e:
         logger.error("영상 복호화 실패 session=%s q=%d: %s", session_id, q_index, e)
         raise HTTPException(status_code=500, detail="영상을 읽을 수 없습니다.") from e
+
+    def _body():
+        yield first
+        yield from stream
+
+    return StreamingResponse(
+        _body(),
+        media_type="video/webm",
+        headers={"Content-Disposition": f'inline; filename="{q_index}.webm"'},
+    )
 
 
 @router.delete(

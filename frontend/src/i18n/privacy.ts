@@ -83,8 +83,10 @@ export const ko = {
   s5ColTrustee: '수탁자',
   s5ColWork: '위탁업무 내용',
   s5NgrokName: 'ngrok Inc. (미국)',
+  // 보관·삭제에 관한 기술은 수탁자의 데이터 처리 계약(DPA)에 근거한 것만 쓴다.
+  // 확인되지 않은 사실을 단정하면 처리방침이 허위 기재가 된다.
   s5NgrokWork:
-    '서비스 접속 경로 제공(보안 터널링) — 이용자 브라우저와 분석 서버 사이의 통신을 중계합니다. 저장은 하지 않습니다.',
+    '서비스 접속 경로 제공(보안 터널링) — 이용자 브라우저와 분석 서버 사이의 통신을 중계합니다. 위탁계약(DPA)에 따라 목적 외 처리가 금지되며, 계약 종료 또는 요청 시 데이터가 삭제됩니다.',
   s5Note:
     '위탁업무의 내용이나 수탁자가 변경될 경우 본 처리방침을 통해 지체 없이 공개합니다. 수탁자가 국외에 있으므로 자세한 사항은 아래 6항을 함께 확인해 주세요.',
 
@@ -113,7 +115,8 @@ export const ko = {
   s6aWhen:
     '면접 세션 시작 시(질문 생성) 및 세션 종료 시(종합 피드백) 각 1회 · API 호출을 통한 네트워크 전송(전송 구간 암호화)',
   s6aPurpose: '면접 질문 생성 및 피드백 작성',
-  s6aPeriod: '처리 목적 달성 시까지. 이전받는 자는 전송된 내용을 AI 모델 학습에 이용하지 않습니다.',
+  s6aPeriod:
+    '이전받는 자의 정책에 따라 수신·생성 시점부터 최대 30일 보관 후 자동 삭제됩니다. 다만 안전 점검 시스템에 의해 표시되거나 법령상 보존 의무가 있는 경우 더 오래 보관될 수 있습니다. 이전받는 자는 자사 정책상 전송된 내용을 별도 동의 없이 AI 모델 학습에 이용하지 않는다고 밝히고 있으며, 본 서비스는 해당 동의를 제공하지 않습니다.',
   s6aRefuse:
     '회원가입 시 국외 이전 동의를 거부하시면 이전이 이루어지지 않습니다. 가입 후에는 회원 탈퇴를 통해 동의를 철회할 수 있습니다. 다만 질문 생성과 피드백이 해당 서비스에 의존하므로, 거부·철회 시 서비스를 이용하실 수 없습니다.',
 
@@ -125,9 +128,10 @@ export const ko = {
   s6bContact: 'privacy@ngrok.com',
   s6bItems:
     '서비스 이용 과정에서 오가는 통신 내용 전부(이력서, 답변 녹화 영상, 분석 결과, 접속 IP)',
-  s6bWhen: '서비스 이용 시 상시 · 암호화된 통신 구간의 중계(별도 저장 없음)',
+  s6bWhen: '서비스 이용 시 상시 · 암호화된 통신 구간의 중계',
   s6bPurpose: '이용자 브라우저와 분석 서버 사이의 통신 중계',
-  s6bPeriod: '중계 목적 달성 즉시(통신 종료 시). 별도로 보관하지 않습니다.',
+  s6bPeriod:
+    '이전받는 자와 체결된 데이터 처리 계약(DPA)에 따라 서비스 제공에 필요한 기간 동안 처리되며, 계약이 종료되거나 본 서비스가 요청하는 경우 삭제됩니다.',
   s6bRefuse:
     '접속 경로 자체에 해당하므로 이전을 거부하시면 서비스에 접속하실 수 없습니다. 거부를 원하시는 경우 아래 11항의 연락처로 요청해 주시기 바라며, 서비스 이용 중단 외의 대안은 제공되지 않습니다.',
 
@@ -297,7 +301,7 @@ export const en: Record<keyof typeof ko, string> = {
   s5ColWork: 'Work outsourced',
   s5NgrokName: 'ngrok Inc. (United States)',
   s5NgrokWork:
-    'Providing the service access path (secure tunnelling) — relays traffic between your browser and the analysis server. Nothing is stored.',
+    'Providing the service access path (secure tunnelling) — relays traffic between your browser and the analysis server. Under the data processing addendum, processing beyond that purpose is prohibited and data is deleted on termination or on request.',
   s5Note:
     'Any change to the outsourced work or the processor will be disclosed in this policy without delay. The processor is located overseas, so please also see section 6 below.',
 
@@ -327,7 +331,7 @@ export const en: Record<keyof typeof ko, string> = {
     'Once when a session starts (question generation) and once when it ends (overall feedback) · Transmitted via API over an encrypted connection',
   s6aPurpose: 'Generating interview questions and writing feedback',
   s6aPeriod:
-    'Until the processing purpose is fulfilled. The recipient does not use the transferred content to train AI models.',
+    "Per the recipient's policy, data is deleted automatically within 30 days of receipt or generation. It may be kept longer where flagged by automated safety systems or where retention is legally required. The recipient states that it does not use transferred content to train AI models without express permission, and this service does not give that permission.",
   s6aRefuse:
     'Declining the overseas transfer consent at sign-up prevents any transfer. After sign-up you may withdraw consent by closing your account. Question and feedback generation depends on this service, so refusing or withdrawing means you cannot use it.',
 
@@ -339,9 +343,10 @@ export const en: Record<keyof typeof ko, string> = {
   s6bContact: 'privacy@ngrok.com',
   s6bItems:
     'All traffic exchanged while using the service (resume, answer recordings, analysis results, access IP)',
-  s6bWhen: 'Continuously while you use the service · Relay of an encrypted connection (nothing stored)',
+  s6bWhen: 'Continuously while you use the service · Relay of an encrypted connection',
   s6bPurpose: 'Relaying traffic between your browser and the analysis server',
-  s6bPeriod: 'Ends as soon as the relay is complete (when the connection closes). Nothing is retained.',
+  s6bPeriod:
+    "Processed for as long as needed to provide the service under the data processing addendum agreed with the recipient, and deleted on termination of that agreement or at this service's request.",
   s6bRefuse:
     'This is the access path itself, so refusing means you cannot reach the service. If you wish to refuse, contact us using section 11 below; no alternative other than discontinuing use is available.',
 

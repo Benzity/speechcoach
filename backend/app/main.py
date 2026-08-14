@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -55,6 +56,13 @@ def _recover_stuck_analyses() -> None:
         logger.info("중단된 분석 %d건 재큐잉", len(ids))
 
 
+# 테이블·컬럼 식별자로 허용할 형태. SQL 바인딩 파라미터(:x)는 식별자 자리에
+# 쓸 수 없어 DDL은 문자열 조합이 불가피하므로, 조합 전에 형태를 검증한다.
+# 아래 additions는 현재 소스에 하드코딩되어 외부 입력이 닿지 않지만, 목록의
+# 출처가 설정 파일 등으로 바뀌어도 인젝션이 성립하지 않도록 남겨둔다.
+_SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def _migrate_add_columns() -> None:
     """Alembic이 없어 create_all로 못 잡는 기존 테이블의 신규 컬럼을 수동 추가.
 
@@ -76,6 +84,9 @@ def _migrate_add_columns() -> None:
     ]
     with engine.begin() as conn:
         for table, column, ddl in additions:
+            # 세미콜론·공백·따옴표가 섞인 이름은 여기서 막힌다.
+            if not _SQL_IDENTIFIER.match(table) or not _SQL_IDENTIFIER.match(column):
+                raise ValueError(f"허용되지 않는 식별자: {table}.{column}")
             existing = {
                 row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))
             }
